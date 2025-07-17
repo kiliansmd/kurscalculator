@@ -100,6 +100,23 @@ export default function ForecastTool() {
     localStorage.setItem("recruiting-forecast-data", JSON.stringify(data))
   }, [data])
 
+  // Auto-scroll to results when they are shown
+  useEffect(() => {
+    if (showResults) {
+      // Small delay to ensure the results are rendered
+      setTimeout(() => {
+        const resultsElement = document.getElementById("forecast-results")
+        if (resultsElement) {
+          resultsElement.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+            inline: "nearest",
+          })
+        }
+      }, 100)
+    }
+  }, [showResults])
+
   const updateField = (field: keyof FormData, value: number | boolean) => {
     setData((prev) => ({ ...prev, [field]: value }))
   }
@@ -800,7 +817,7 @@ export default function ForecastTool() {
 
             {/* Results */}
             {showResults && (
-              <div className="space-y-8 animate-slide-in">
+              <div id="forecast-results" className="space-y-8 animate-slide-in">
                 <ScenarioResults
                   breakEvenGross={breakEvenGross}
                   totalMonthlyCosts={totalMonthlyCosts}
@@ -823,12 +840,14 @@ export default function ForecastTool() {
                       In unserem Recruiting-Kurs lernst du, wie du Kunden gewinnst, dein Business absicherst und
                       nachhaltig aufbaust – mit praxiserprobten Strategien und persönlicher Betreuung.
                     </p>
-                    <Button
-                      size="lg"
-                      className="bg-white text-custom-orange hover:bg-gray-100 px-8 py-3 text-lg font-semibold rounded-lg"
-                    >
-                      Jetzt starten →
-                    </Button>
+                    <a href="https://getexperts.academy/" target="_blank" rel="noopener noreferrer">
+                      <Button
+                        size="lg"
+                        className="bg-white text-custom-orange hover:bg-gray-100 px-8 py-3 text-lg font-semibold rounded-lg"
+                      >
+                        Jetzt starten →
+                      </Button>
+                    </a>
                   </CardContent>
                 </Card>
               </div>
