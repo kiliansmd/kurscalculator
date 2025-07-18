@@ -3,7 +3,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, AlertCircle, Calculator } from "lucide-react"
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  AlertTriangle,
+  CheckCircle,
+  AlertCircle,
+  Calculator,
+  Lightbulb,
+} from "lucide-react"
 
 interface ScenarioResultsProps {
   breakEvenGross: number
@@ -15,6 +24,9 @@ interface ScenarioResultsProps {
   }
   monthsOfReserves: number
   desiredBuffer: number
+  projectsPerYear: number
+  projectFee: number
+  taxRate: number
 }
 
 export function ScenarioResults({
@@ -23,6 +35,9 @@ export function ScenarioResults({
   scenarios,
   monthsOfReserves,
   desiredBuffer,
+  projectsPerYear,
+  projectFee,
+  taxRate,
 }: ScenarioResultsProps) {
   const getScenarioStatus = (revenue: number) => {
     if (revenue >= totalMonthlyCosts * 1.2) return "excellent"
@@ -39,6 +54,35 @@ export function ScenarioResults({
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })
+  }
+
+  const getRecommendations = () => {
+    const recommendations = []
+
+    if (scenarios.realistic < totalMonthlyCosts) {
+      recommendations.push("🎯 Erhöhe deine Projektanzahl oder dein Honorar pro Projekt")
+      recommendations.push("💰 Reduziere deine Fixkosten wo möglich")
+    }
+
+    if (monthsOfReserves < desiredBuffer) {
+      recommendations.push("🛡️ Baue deine Liquiditätsreserven weiter aus")
+    }
+
+    if (scenarios.pessimistic < totalMonthlyCosts * 0.5) {
+      recommendations.push("⚠️ Entwickle einen Plan B für schwierige Zeiten")
+      recommendations.push("🔄 Diversifiziere deine Einnahmequellen")
+    }
+
+    if (taxRate > 40) {
+      recommendations.push("📊 Prüfe steuerliche Optimierungsmöglichkeiten")
+    }
+
+    if (recommendations.length === 0) {
+      recommendations.push("✅ Deine Finanzplanung sieht solide aus!")
+      recommendations.push("📈 Fokussiere dich auf nachhaltiges Wachstum")
+    }
+
+    return recommendations
   }
 
   return (
@@ -64,6 +108,29 @@ export function ScenarioResults({
             </div>
           </div>
 
+          {/* Detailed Calculation */}
+          <div className="mt-6 bg-gray-50 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 mb-3">Rechenweg:</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span>Monatliche Gesamtkosten:</span>
+                <span className="font-medium">{formatCurrency(totalMonthlyCosts)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Steuersatz (gesamt):</span>
+                <span className="font-medium">{taxRate}%</span>
+              </div>
+              <div className="flex justify-between border-t pt-2">
+                <span>Benötigter Brutto-Umsatz:</span>
+                <span className="font-bold">{formatCurrency(breakEvenGross)}</span>
+              </div>
+              <p className="text-xs text-gray-600 mt-2">
+                Formel: Kosten ÷ (1 - Steuersatz) = {formatCurrency(totalMonthlyCosts)} ÷{" "}
+                {((100 - taxRate) / 100).toFixed(2)} = {formatCurrency(breakEvenGross)}
+              </p>
+            </div>
+          </div>
+
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div className="bg-slate-50 p-4 rounded-lg">
               <p className="font-medium text-slate-700">Gesamte Monatskosten</p>
@@ -78,7 +145,7 @@ export function ScenarioResults({
       </Card>
 
       {/* Scenario Analysis */}
-      <Card className="bg-white/90 backdrop-blur-sm border-slate-200">
+      <Card className="bg-white shadow-sm border-0 rounded-xl">
         <CardHeader>
           <CardTitle className="text-slate-800">Szenarien-Analyse</CardTitle>
         </CardHeader>
@@ -93,6 +160,10 @@ export function ScenarioResults({
               <Badge variant={getScenarioStatus(scenarios.pessimistic) === "danger" ? "destructive" : "secondary"}>
                 {formatCurrency(scenarios.pessimistic)}
               </Badge>
+            </div>
+            <div className="text-xs text-gray-500 mb-2">
+              Rechnung: {projectFee.toLocaleString("de-DE")} € × {Math.round((projectsPerYear * 30) / 100)}{" "}
+              Vermittlungen/Jahr ÷ 12 Monate × (1 - {(taxRate / 100).toFixed(2)})
             </div>
             <p className="text-slate-600">
               {scenarios.pessimistic < totalMonthlyCosts
@@ -112,6 +183,10 @@ export function ScenarioResults({
                 {formatCurrency(scenarios.realistic)}
               </Badge>
             </div>
+            <div className="text-xs text-gray-500 mb-2">
+              Rechnung: {projectFee.toLocaleString("de-DE")} € × {Math.round((projectsPerYear * 60) / 100)}{" "}
+              Vermittlungen/Jahr ÷ 12 Monate × (1 - {(taxRate / 100).toFixed(2)})
+            </div>
             <p className="text-slate-600">
               {scenarios.realistic >= totalMonthlyCosts
                 ? `✅ Du hast ein Polster von ${formatCurrency(scenarios.realistic - totalMonthlyCosts)} pro Monat.`
@@ -130,9 +205,37 @@ export function ScenarioResults({
                 {formatCurrency(scenarios.optimistic)}
               </Badge>
             </div>
+            <div className="text-xs text-gray-500 mb-2">
+              Rechnung: {projectFee.toLocaleString("de-DE")} € × {Math.round((projectsPerYear * 90) / 100)}{" "}
+              Vermittlungen/Jahr ÷ 12 Monate × (1 - {(taxRate / 100).toFixed(2)})
+            </div>
             <p className="text-slate-600">
               🚀 Du erzielst einen Überschuss von {formatCurrency(scenarios.optimistic - totalMonthlyCosts)} pro Monat.
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recommendations */}
+      <Card className="bg-white shadow-sm border-0 rounded-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3 text-gray-900 text-xl">
+            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <Lightbulb className="h-5 w-5 text-yellow-600" />
+            </div>
+            Empfohlene Maßnahmen
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {getRecommendations().map((recommendation, index) => (
+              <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-6 h-6 bg-custom-orange text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                  {index + 1}
+                </div>
+                <p className="text-gray-700">{recommendation}</p>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

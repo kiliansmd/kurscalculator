@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -8,10 +8,24 @@ import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { Info, Calculator, TrendingUp, Shield, RotateCcw, CheckCircle, Users, Euro } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Info,
+  Calculator,
+  TrendingUp,
+  Shield,
+  RotateCcw,
+  CheckCircle,
+  Euro,
+  HelpCircle,
+  ExternalLink,
+  Save,
+  Download,
+  Share2,
+} from "lucide-react"
 import { ForecastChart } from "@/components/forecast-chart"
 import { ScenarioResults } from "@/components/scenario-results"
+import { CoursePromotionModal } from "@/components/course-promotion-modal"
 
 interface FormData {
   // Personal costs
@@ -44,7 +58,7 @@ interface FormData {
 
   // Revenue planning
   projectFee: number
-  projectsPerMonth: number
+  projectsPerYear: number
   pessimisticRate: number
   realisticRate: number
   optimisticRate: number
@@ -71,8 +85,8 @@ const defaultData: FormData = {
   vatRequired: false,
   currentReserves: 0,
   desiredBuffer: 6,
-  projectFee: 0,
-  projectsPerMonth: 0,
+  projectFee: 10000,
+  projectsPerYear: 6,
   pessimisticRate: 30,
   realisticRate: 60,
   optimisticRate: 90,
@@ -82,6 +96,9 @@ export default function ForecastTool() {
   const [data, setData] = useState<FormData>(defaultData)
   const [showResults, setShowResults] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
+  const [showPromoModal, setShowPromoModal] = useState(false)
+  const [isCalculating, setIsCalculating] = useState(false)
+  const [savedData, setSavedData] = useState<FormData[]>([])
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -91,6 +108,15 @@ export default function ForecastTool() {
         setData(JSON.parse(saved))
       } catch (e) {
         console.error("Error loading saved data:", e)
+      }
+    }
+
+    const savedScenarios = localStorage.getItem("recruiting-forecast-saved")
+    if (savedScenarios) {
+      try {
+        setSavedData(JSON.parse(savedScenarios))
+      } catch (e) {
+        console.error("Error loading saved scenarios:", e)
       }
     }
   }, [])
@@ -113,19 +139,80 @@ export default function ForecastTool() {
             inline: "nearest",
           })
         }
+        // Show promotion modal after scrolling
+        setTimeout(() => {
+          setShowPromoModal(true)
+        }, 1500)
       }, 100)
     }
   }, [showResults])
 
-  const updateField = (field: keyof FormData, value: number | boolean) => {
+  const updateField = useCallback((field: keyof FormData, value: number | boolean) => {
     setData((prev) => ({ ...prev, [field]: value }))
-  }
+  }, [])
 
   const resetData = () => {
     setData(defaultData)
     localStorage.removeItem("recruiting-forecast-data")
     setShowResults(false)
     setCurrentStep(1)
+    setShowPromoModal(false)
+  }
+
+  const saveCurrentScenario = () => {
+    const timestamp = new Date().toISOString()
+    const scenarioName = `Szenario ${new Date().toLocaleDateString("de-DE")}`
+    const newScenario = { ...data, timestamp, name: scenarioName }
+    const updated = [...savedData, newScenario]
+    setSavedData(updated)
+    localStorage.setItem("recruiting-forecast-saved", JSON.stringify(updated))
+  }
+
+  const exportData = () => {
+    const dataStr = JSON.stringify(data, null, 2)
+    const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr)
+    const exportFileDefaultName = `recruiting-forecast-${new Date().toISOString().split("T")[0]}.json`
+
+    const linkElement = document.createElement("a")
+    linkElement.setAttribute("href", dataUri)
+    linkElement.setAttribute("download", exportFileDefaultName)
+    linkElement.click()
+  }
+
+  const shareResults = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Recruiting Business Forecast",
+          text: `Mein Break-Even liegt bei ${formatCurrency(breakEvenGross)} pro Monat. Berechne deinen eigenen Forecast!`,
+          url: window.location.href,
+        })
+      } catch (err) {
+        console.log("Error sharing:", err)
+      }
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(window.location.href)
+      alert("Link wurde in die Zwischenablage kopiert!")
+    }
+  }
+
+  // Validation
+  const validateStep = (step: number) => {
+    switch (step) {
+      case 1:
+        return data.rent > 0 || data.food > 0 || data.insurance > 0
+      case 2:
+        return true // Business costs are optional
+      case 3:
+        return data.incomeTaxRate >= 0 && data.businessTaxRate >= 0
+      case 4:
+        return data.desiredBuffer > 0
+      case 5:
+        return data.projectFee > 0 && data.projectsPerYear > 0
+      default:
+        return true
+    }
   }
 
   // Calculations
@@ -161,24 +248,44 @@ export default function ForecastTool() {
   const breakEvenGross =
     totalMonthlyCosts / (1 - (data.incomeTaxRate + data.businessTaxRate + (data.vatRequired ? 19 : 0)) / 100)
 
+  const projectsPerMonth = data.projectsPerYear / 12
+
   const scenarios = {
-    pessimistic: calculateNetRevenue((data.projectFee * data.projectsPerMonth * data.pessimisticRate) / 100),
-    realistic: calculateNetRevenue((data.projectFee * data.projectsPerMonth * data.realisticRate) / 100),
-    optimistic: calculateNetRevenue((data.projectFee * data.projectsPerMonth * data.optimisticRate) / 100),
+    pessimistic: calculateNetRevenue((data.projectFee * projectsPerMonth * data.pessimisticRate) / 100),
+    realistic: calculateNetRevenue((data.projectFee * projectsPerMonth * data.realisticRate) / 100),
+    optimistic: calculateNetRevenue((data.projectFee * projectsPerMonth * data.optimisticRate) / 100),
   }
 
   const monthsOfReserves = data.currentReserves > 0 ? data.currentReserves / totalMonthlyCosts : 0
 
-  const handleCalculate = () => {
+  const handleCalculate = async () => {
+    setIsCalculating(true)
+    // Simulate calculation time for better UX
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    setIsCalculating(false)
     setShowResults(true)
   }
 
   const nextStep = () => {
-    if (currentStep < 5) setCurrentStep(currentStep + 1)
+    if (currentStep < 5 && validateStep(currentStep)) {
+      setCurrentStep(currentStep + 1)
+    }
   }
 
   const prevStep = () => {
     if (currentStep > 1) setCurrentStep(currentStep - 1)
+  }
+
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })
+  }
+
+  const getStepProgress = () => {
+    let completedSteps = 0
+    for (let i = 1; i <= 5; i++) {
+      if (validateStep(i)) completedSteps++
+    }
+    return (completedSteps / 5) * 100
   }
 
   return (
@@ -208,10 +315,6 @@ export default function ForecastTool() {
                 <span>100% Datenschutz</span>
               </div>
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-blue-600" />
-                <span>Über 1.000 Nutzer</span>
-              </div>
-              <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-custom-orange" />
                 <span>Sofort einsatzbereit</span>
               </div>
@@ -222,7 +325,19 @@ export default function ForecastTool() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <span className="text-sm font-medium text-gray-700">Schritt {currentStep} von 5</span>
-              <span className="text-sm text-gray-500">{Math.round((currentStep / 5) * 100)}% abgeschlossen</span>
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-500">{Math.round(getStepProgress())}% vollständig</span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={saveCurrentScenario} className="text-xs bg-transparent">
+                    <Save className="h-3 w-3 mr-1" />
+                    Speichern
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportData} className="text-xs bg-transparent">
+                    <Download className="h-3 w-3 mr-1" />
+                    Export
+                  </Button>
+                </div>
+              </div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
@@ -249,8 +364,16 @@ export default function ForecastTool() {
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="rent" className="text-sm font-medium text-gray-700">
+                      <Label htmlFor="rent" className="text-sm font-medium text-gray-700 flex items-center gap-2">
                         Miete/Wohnkosten
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Trage hier deine Warmmiete ein, inklusive Nebenkosten wie Heizung, Wasser und Strom.</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </Label>
                       <div className="relative">
                         <Input
@@ -557,9 +680,31 @@ export default function ForecastTool() {
                 </CardHeader>
                 <CardContent className="space-y-8">
                   <div className="space-y-4">
-                    <Label className="text-sm font-medium text-gray-700">
+                    <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                       Erwarteter Einkommenssteuersatz:{" "}
                       <span className="font-bold text-custom-orange">{data.incomeTaxRate}%</span>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="mb-2">Der Einkommenssteuersatz hängt von deinem Jahreseinkommen ab:</p>
+                          <ul className="text-xs space-y-1">
+                            <li>• bis 10.908 €: 0%</li>
+                            <li>• 10.909 - 62.809 €: 14-42%</li>
+                            <li>• 62.810 - 277.825 €: 42%</li>
+                            <li>• über 277.826 €: 45%</li>
+                          </ul>
+                        </TooltipContent>
+                      </Tooltip>
+                      <a
+                        href="https://www.bundesfinanzministerium.de/Content/DE/Standardartikel/Themen/Steuern/Steuerarten/Einkommensteuer/einkommensteuer.html"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
                     </Label>
                     <Slider
                       value={[data.incomeTaxRate]}
@@ -575,9 +720,29 @@ export default function ForecastTool() {
                   </div>
 
                   <div className="space-y-4">
-                    <Label className="text-sm font-medium text-gray-700">
+                    <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                       Erwarteter Gewerbesteuersatz:{" "}
                       <span className="font-bold text-custom-orange">{data.businessTaxRate}%</span>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>
+                            Die Gewerbesteuer variiert je nach Gemeinde. Der Grundsteuersatz beträgt 3,5%, wird aber mit
+                            dem Hebesatz der Gemeinde multipliziert. Durchschnittlich liegt der effektive Satz bei
+                            14-17%.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <a
+                        href="https://www.bundesfinanzministerium.de/Content/DE/Standardartikel/Themen/Steuern/Steuerarten/Gewerbesteuer/gewerbesteuer.html"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
                     </Label>
                     <Slider
                       value={[data.businessTaxRate]}
@@ -608,8 +773,20 @@ export default function ForecastTool() {
                         <SelectItem value="yes">Ja (Umsatzsteuerpflichtig)</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-sm text-gray-500">
-                      💡 Tipp: Wenn du über 22.000 € Jahresumsatz liegst, bist du meist nicht mehr Kleinunternehmer
+                    <p className="text-sm text-gray-500 flex items-start gap-2">
+                      <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <span>
+                        Tipp: Wenn du über 22.000 € Jahresumsatz liegst, bist du meist nicht mehr Kleinunternehmer und
+                        musst 19% Umsatzsteuer abführen.
+                        <a
+                          href="https://www.bundesfinanzministerium.de/Content/DE/Standardartikel/Themen/Steuern/Steuerarten/Umsatzsteuer/umsatzsteuer.html"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 ml-1"
+                        >
+                          Mehr erfahren <ExternalLink className="h-3 w-3 inline" />
+                        </a>
+                      </span>
                     </p>
                   </div>
                 </CardContent>
@@ -630,8 +807,23 @@ export default function ForecastTool() {
                 </CardHeader>
                 <CardContent className="space-y-8">
                   <div className="space-y-3">
-                    <Label htmlFor="currentReserves" className="text-sm font-medium text-gray-700">
+                    <Label
+                      htmlFor="currentReserves"
+                      className="text-sm font-medium text-gray-700 flex items-center gap-2"
+                    >
                       Aktuell vorhandene Rücklagen
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>
+                            Hier sollten nur liquide Mittel eingetragen werden, die innerhalb von 1-2 Wochen verfügbar
+                            sind. Dazu gehören: Giro-/Tagesgeldkonten, kurzfristige Festgelder. Nicht: Aktien, ETFs,
+                            Immobilien oder langfristige Anlagen.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
                     </Label>
                     <div className="relative">
                       <Input
@@ -644,6 +836,9 @@ export default function ForecastTool() {
                       />
                       <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
                     </div>
+                    <p className="text-xs text-gray-500">
+                      💡 Nur liquide Mittel (verfügbar in 1-2 Wochen): Giro-, Tagesgeld-, kurzfristige Festgeldkonten
+                    </p>
                   </div>
 
                   <div className="space-y-4">
@@ -694,39 +889,81 @@ export default function ForecastTool() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
                       <Label htmlFor="projectFee" className="text-sm font-medium text-gray-700">
-                        Erwartetes Honorar pro Projekt
+                        Durchschnittlicher Umsatz pro Vermittlung
                       </Label>
-                      <div className="relative">
-                        <Input
-                          id="projectFee"
-                          type="number"
-                          value={data.projectFee || ""}
-                          onChange={(e) => updateField("projectFee", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>1.000 €</span>
+                          <span className="font-medium">{data.projectFee.toLocaleString("de-DE")} €</span>
+                          <span>50.000 €</span>
+                        </div>
+                        <Slider
+                          value={[data.projectFee]}
+                          onValueChange={(value) => updateField("projectFee", value[0])}
+                          min={1000}
+                          max={50000}
+                          step={500}
+                          className="mt-2"
                         />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
                       </div>
                     </div>
 
                     <div className="space-y-3">
-                      <Label htmlFor="projectsPerMonth" className="text-sm font-medium text-gray-700">
-                        Erwartete Anzahl Projekte pro Monat
+                      <Label htmlFor="projectsPerYear" className="text-sm font-medium text-gray-700">
+                        Erwartete Vermittlungen im ersten Jahr
                       </Label>
-                      <Input
-                        id="projectsPerMonth"
-                        type="number"
-                        value={data.projectsPerMonth || ""}
-                        onChange={(e) => updateField("projectsPerMonth", Number(e.target.value))}
-                        placeholder="0"
-                      />
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>1</span>
+                          <span className="font-medium">{data.projectsPerYear} Vermittlungen</span>
+                          <span>12</span>
+                        </div>
+                        <Slider
+                          value={[data.projectsPerYear]}
+                          onValueChange={(value) => updateField("projectsPerYear", value[0])}
+                          min={1}
+                          max={12}
+                          step={1}
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-gray-500">
+                          Das entspricht {(data.projectsPerYear / 12).toFixed(1)} Vermittlungen pro Monat
+                        </p>
+                      </div>
                     </div>
                   </div>
 
                   <div className="space-y-6">
-                    <h4 className="font-semibold text-gray-900">
-                      Auftragswahrscheinlichkeit in verschiedenen Szenarien:
-                    </h4>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <Info className="h-4 w-4 text-blue-600" />
+                        Auftragswahrscheinlichkeit - Was bedeutet das?
+                      </h4>
+                      <p className="text-sm text-gray-700 mb-3">
+                        Die Prozentsätze geben an, mit welcher Wahrscheinlichkeit du deine geplanten{" "}
+                        {data.projectsPerYear} Vermittlungen pro Jahr tatsächlich realisierst:
+                      </p>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span>• Pessimistisch ({data.pessimisticRate}%):</span>
+                          <span className="font-medium">
+                            {Math.round((data.projectsPerYear * data.pessimisticRate) / 100)} Vermittlungen/Jahr
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>• Realistisch ({data.realisticRate}%):</span>
+                          <span className="font-medium">
+                            {Math.round((data.projectsPerYear * data.realisticRate) / 100)} Vermittlungen/Jahr
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>• Optimistisch ({data.optimisticRate}%):</span>
+                          <span className="font-medium">
+                            {Math.round((data.projectsPerYear * data.optimisticRate) / 100)} Vermittlungen/Jahr
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
                     <div className="space-y-4">
                       <Label className="text-sm font-medium text-gray-700">
@@ -788,7 +1025,8 @@ export default function ForecastTool() {
                   <Button
                     onClick={nextStep}
                     size="lg"
-                    className="bg-custom-orange hover:bg-custom-orange-dark text-white px-8 flex-1 sm:flex-none"
+                    disabled={!validateStep(currentStep)}
+                    className="bg-custom-orange hover:bg-custom-orange-dark text-white px-8 flex-1 sm:flex-none disabled:opacity-50"
                   >
                     Weiter
                   </Button>
@@ -796,10 +1034,20 @@ export default function ForecastTool() {
                   <Button
                     onClick={handleCalculate}
                     size="lg"
-                    className="bg-custom-orange hover:bg-custom-orange-dark text-white px-8 flex-1 sm:flex-none"
+                    disabled={isCalculating || !validateStep(currentStep)}
+                    className="bg-custom-orange hover:bg-custom-orange-dark text-white px-8 flex-1 sm:flex-none disabled:opacity-50"
                   >
-                    <Calculator className="mr-2 h-5 w-5" />
-                    Jetzt berechnen
+                    {isCalculating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Berechne...
+                      </>
+                    ) : (
+                      <>
+                        <Calculator className="mr-2 h-5 w-5" />
+                        Jetzt berechnen
+                      </>
+                    )}
                   </Button>
                 )}
 
@@ -824,6 +1072,9 @@ export default function ForecastTool() {
                   scenarios={scenarios}
                   monthsOfReserves={monthsOfReserves}
                   desiredBuffer={data.desiredBuffer}
+                  projectsPerYear={data.projectsPerYear}
+                  projectFee={data.projectFee}
+                  taxRate={data.incomeTaxRate + data.businessTaxRate + (data.vatRequired ? 19 : 0)}
                 />
 
                 <ForecastChart
@@ -831,6 +1082,37 @@ export default function ForecastTool() {
                   scenarios={scenarios}
                   labels={["Pessimistisch", "Realistisch", "Optimistisch"]}
                 />
+
+                {/* Share Results */}
+                <Card className="bg-white shadow-sm border-0 rounded-xl">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                      <p className="text-gray-600 text-center sm:text-left">
+                        Teile deine Ergebnisse oder speichere sie für später:
+                      </p>
+                      <div className="flex gap-3">
+                        <Button
+                          onClick={shareResults}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-2 bg-transparent"
+                        >
+                          <Share2 className="h-4 w-4" />
+                          Teilen
+                        </Button>
+                        <Button
+                          onClick={exportData}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-2 bg-transparent"
+                        >
+                          <Download className="h-4 w-4" />
+                          Exportieren
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* CTA */}
                 <Card className="bg-gradient-to-r from-custom-orange to-amber-500 text-white border-0 rounded-xl">
@@ -864,6 +1146,9 @@ export default function ForecastTool() {
             </div>
           </div>
         </div>
+
+        {/* Course Promotion Modal */}
+        <CoursePromotionModal isOpen={showPromoModal} onClose={() => setShowPromoModal(false)} />
       </div>
     </TooltipProvider>
   )
