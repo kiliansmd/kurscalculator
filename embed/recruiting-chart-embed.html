@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recruiting Business Chart - Embed Code</title>
+    <style>
+        .recruiting-chart-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .recruiting-chart-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+        
+        .recruiting-chart-iframe {
+            width: 100%;
+            height: 600px;
+            border: none;
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .recruiting-chart-container {
+                margin: 0 10px;
+            }
+            
+            .recruiting-chart-iframe {
+                height: 500px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- STANDARD EMBED CODE - Kopiere diesen Code in deine Website -->
+<div class="recruiting-chart-container">
+    <iframe 
+        src="https://deine-domain.com/recruiting-potential" 
+        class="recruiting-chart-iframe"
+        title="Recruiting Business Potenzial Chart"
+        loading="lazy">
+    </iframe>
+</div>
+
+<!-- ERWEITERTE EMBED OPTIONEN -->
+
+<!-- Option 1: Mit benutzerdefinierten Parametern -->
+<div class="recruiting-chart-container">
+    <iframe 
+        src="https://deine-domain.com/recruiting-potential?salary=70000&commission=30" 
+        class="recruiting-chart-iframe"
+        title="Recruiting Business Potenzial Chart">
+    </iframe>
+</div>
+
+<!-- Option 2: Kompakte Version (400px Höhe) -->
+<div class="recruiting-chart-container" style="max-width: 600px;">
+    <iframe 
+        src="https://deine-domain.com/recruiting-potential" 
+        style="width: 100%; height: 400px; border: none;"
+        title="Recruiting Business Potenzial Chart">
+    </iframe>
+</div>
+
+<!-- Option 3: Vollbreite für Landing Pages -->
+<div style="width: 100%; max-width: 1200px; margin: 0 auto;">
+    <iframe 
+        src="https://deine-domain.com/recruiting-potential" 
+        style="width: 100%; height: 700px; border: none; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);"
+        title="Recruiting Business Potenzial Chart">
+    </iframe>
+</div>
+
+<!-- JAVASCRIPT EMBED SCRIPT (Erweitert) -->
+<script>
+(function() {
+    window.RecruitingChart = {
+        embed: function(containerId, options = {}) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.error('Container nicht gefunden:', containerId);
+                return;
+            }
+            
+            const defaults = {
+                width: '100%',
+                height: '600px',
+                salary: '60000',
+                commission: '25',
+                maxWidth: '800px',
+                borderRadius: '12px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                hoverEffect: true
+            };
+            
+            const config = Object.assign(defaults, options);
+            
+            // Container styling
+            container.style.cssText = `
+                width: ${config.width};
+                max-width: ${config.maxWidth};
+                margin: 0 auto;
+                border-radius: ${config.borderRadius};
+                box-shadow: ${config.boxShadow};
+                overflow: hidden;
+                transition: all 0.3s ease;
+            `;
+            
+            // Build iframe URL
+            const baseUrl = 'https://deine-domain.com/recruiting-potential';
+            const params = new URLSearchParams({
+                salary: config.salary,
+                commission: config.commission
+            });
+            const iframeUrl = `${baseUrl}?${params.toString()}`;
+            
+            // Create iframe
+            const iframe = document.createElement('iframe');
+            iframe.src = iframeUrl;
+            iframe.style.cssText = `
+                width: 100%;
+                height: ${config.height};
+                border: none;
+                display: block;
+            `;
+            iframe.title = 'Recruiting Business Potenzial Chart';
+            iframe.loading = 'lazy';
+            
+            // Add hover effect
+            if (config.hoverEffect) {
+                container.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.boxShadow = '0 15px 35px rgba(0,0,0,0.15)';
+                });
+                
+                container.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                    this.style.boxShadow = config.boxShadow;
+                });
+            }
+            
+            container.appendChild(iframe);
+            return iframe;
+        }
+    };
+})();
+</script>
+
+<!-- VERWENDUNGSBEISPIELE FÜR JAVASCRIPT -->
+
+<!-- Beispiel 1: Standard Einbindung -->
+<div id="recruiting-chart-1"></div>
+<script>
+RecruitingChart.embed('recruiting-chart-1');
+</script>
+
+<!-- Beispiel 2: Mit benutzerdefinierten Optionen -->
+<div id="recruiting-chart-2"></div>
+<script>
+RecruitingChart.embed('recruiting-chart-2', {
+    height: '500px',
+    salary: '70000',
+    commission: '30',
+    maxWidth: '600px'
+});
+</script>
+
+<!-- Beispiel 3: Kompakte Version ohne Hover-Effekt -->
+<div id="recruiting-chart-3"></div>
+<script>
+RecruitingChart.embed('recruiting-chart-3', {
+    height: '400px',
+    maxWidth: '500px',
+    hoverEffect: false,
+    boxShadow: '0 5px 15px rgba(0,0,0,0.08)'
+});
+</script>
+
+<!-- WORDPRESS SHORTCODE BEISPIELE -->
+<!--
+Für WordPress functions.php:
+
+function recruiting_chart_shortcode($atts) {
+    $atts = shortcode_atts(array(
+        'width' => '100%',
+        'height' => '600px',
+        'salary' => '60000',
+        'commission' => '25',
+        'max_width' => '800px'
+    ), $atts);
+    
+    $iframe_url = 'https://deine-domain.com/recruiting-potential';
+    if ($atts['salary'] != '60000' || $atts['commission'] != '25') {
+        $iframe_url .= '?salary=' . $atts['salary'] . '&commission=' . $atts['commission'];
+    }
+    
+    return '<div style="width: ' . $atts['width'] . '; max-width: ' . $atts['max_width'] . '; margin: 0 auto; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden;">
+        <iframe 
+            src="' . $iframe_url . '" 
+            style="width: 100%; height: ' . $atts['height'] . '; border: none; display: block;" 
+            title="Recruiting Business Potenzial Chart"
+            loading="lazy">
+        </iframe>
+    </div>';
+}
+add_shortcode('recruiting_chart', 'recruiting_chart_shortcode');
+
+Verwendung:
+[recruiting_chart]
+[recruiting_chart salary="70000" commission="30"]
+[recruiting_chart height="500px" max_width="600px"]
+-->
+
+</body>
+</html>
