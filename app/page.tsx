@@ -12,16 +12,20 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Info,
   Calculator,
-  TrendingUp,
   Shield,
   RotateCcw,
   CheckCircle,
   Euro,
   HelpCircle,
-  ExternalLink,
-  Save,
-  Download,
   Share2,
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  Home,
+  Building2,
+  Receipt,
+  Wallet,
+  Target,
 } from "lucide-react"
 import { ForecastChart } from "@/components/forecast-chart"
 import { ScenarioResults } from "@/components/scenario-results"
@@ -92,13 +96,55 @@ const defaultData: FormData = {
   optimisticRate: 90,
 }
 
+const steps = [
+  {
+    id: 1,
+    title: "Privat",
+    subtitle: "Lebenshaltungskosten",
+    icon: Home,
+    color: "from-blue-500 to-blue-600",
+    bgColor: "bg-blue-50",
+  },
+  {
+    id: 2,
+    title: "Business",
+    subtitle: "Geschäftskosten",
+    icon: Building2,
+    color: "from-purple-500 to-purple-600",
+    bgColor: "bg-purple-50",
+  },
+  {
+    id: 3,
+    title: "Steuern",
+    subtitle: "Rücklagen",
+    icon: Receipt,
+    color: "from-green-500 to-green-600",
+    bgColor: "bg-green-50",
+  },
+  {
+    id: 4,
+    title: "Sicherheit",
+    subtitle: "Liquidität",
+    icon: Wallet,
+    color: "from-amber-500 to-amber-600",
+    bgColor: "bg-amber-50",
+  },
+  {
+    id: 5,
+    title: "Umsatz",
+    subtitle: "Prognose",
+    icon: Target,
+    color: "from-teal-500 to-teal-600",
+    bgColor: "bg-teal-50",
+  },
+]
+
 export default function ForecastTool() {
   const [data, setData] = useState<FormData>(defaultData)
   const [showResults, setShowResults] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [showPromoModal, setShowPromoModal] = useState(false)
   const [isCalculating, setIsCalculating] = useState(false)
-  const [savedData, setSavedData] = useState<FormData[]>([])
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -108,15 +154,6 @@ export default function ForecastTool() {
         setData(JSON.parse(saved))
       } catch (e) {
         console.error("Error loading saved data:", e)
-      }
-    }
-
-    const savedScenarios = localStorage.getItem("recruiting-forecast-saved")
-    if (savedScenarios) {
-      try {
-        setSavedData(JSON.parse(savedScenarios))
-      } catch (e) {
-        console.error("Error loading saved scenarios:", e)
       }
     }
   }, [])
@@ -129,7 +166,6 @@ export default function ForecastTool() {
   // Auto-scroll to results when they are shown
   useEffect(() => {
     if (showResults) {
-      // Small delay to ensure the results are rendered
       setTimeout(() => {
         const resultsElement = document.getElementById("forecast-results")
         if (resultsElement) {
@@ -139,7 +175,6 @@ export default function ForecastTool() {
             inline: "nearest",
           })
         }
-        // Show promotion modal after scrolling
         setTimeout(() => {
           setShowPromoModal(true)
         }, 1500)
@@ -159,26 +194,6 @@ export default function ForecastTool() {
     setShowPromoModal(false)
   }
 
-  const saveCurrentScenario = () => {
-    const timestamp = new Date().toISOString()
-    const scenarioName = `Szenario ${new Date().toLocaleDateString("de-DE")}`
-    const newScenario = { ...data, timestamp, name: scenarioName }
-    const updated = [...savedData, newScenario]
-    setSavedData(updated)
-    localStorage.setItem("recruiting-forecast-saved", JSON.stringify(updated))
-  }
-
-  const exportData = () => {
-    const dataStr = JSON.stringify(data, null, 2)
-    const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr)
-    const exportFileDefaultName = `recruiting-forecast-${new Date().toISOString().split("T")[0]}.json`
-
-    const linkElement = document.createElement("a")
-    linkElement.setAttribute("href", dataUri)
-    linkElement.setAttribute("download", exportFileDefaultName)
-    linkElement.click()
-  }
-
   const shareResults = async () => {
     if (navigator.share) {
       try {
@@ -191,7 +206,6 @@ export default function ForecastTool() {
         console.log("Error sharing:", err)
       }
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(window.location.href)
       alert("Link wurde in die Zwischenablage kopiert!")
     }
@@ -201,9 +215,18 @@ export default function ForecastTool() {
   const validateStep = (step: number) => {
     switch (step) {
       case 1:
-        return data.rent > 0 || data.food > 0 || data.insurance > 0
+        return (
+          data.rent > 0 ||
+          data.food > 0 ||
+          data.insurance > 0 ||
+          data.mobility > 0 ||
+          data.communication > 0 ||
+          data.leisure > 0 ||
+          data.healthInsurance > 0 ||
+          data.personalOther > 0
+        )
       case 2:
-        return true // Business costs are optional
+        return true
       case 3:
         return data.incomeTaxRate >= 0 && data.businessTaxRate >= 0
       case 4:
@@ -240,7 +263,7 @@ export default function ForecastTool() {
   const calculateNetRevenue = (grossRevenue: number) => {
     let taxRate = (data.incomeTaxRate + data.businessTaxRate) / 100
     if (data.vatRequired) {
-      taxRate += 0.19 // 19% VAT
+      taxRate += 0.19
     }
     return grossRevenue * (1 - taxRate)
   }
@@ -260,7 +283,6 @@ export default function ForecastTool() {
 
   const handleCalculate = async () => {
     setIsCalculating(true)
-    // Simulate calculation time for better UX
     await new Promise((resolve) => setTimeout(resolve, 1500))
     setIsCalculating(false)
     setShowResults(true)
@@ -280,240 +302,182 @@ export default function ForecastTool() {
     return amount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })
   }
 
-  const getStepProgress = () => {
-    let completedSteps = 0
-    for (let i = 1; i <= 5; i++) {
-      if (validateStep(i)) completedSteps++
-    }
-    return (completedSteps / 5) * 100
-  }
+  const currentStepData = steps[currentStep - 1]
 
   return (
     <TooltipProvider>
-      <div className="bg-gray-50 min-h-screen">
-        <div className="container mx-auto px-4 py-12 max-w-4xl">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 bg-custom-orange-light text-custom-orange-text px-4 py-2 rounded-full text-sm font-medium mb-6">
-              <Calculator className="h-4 w-4" />
+      <div className="min-h-screen bg-slate-50">
+        <div className="container mx-auto px-4 py-8 max-w-5xl">
+          {/* Modern Hero Section */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm text-slate-600 px-4 py-2 rounded-full text-sm font-medium mb-8 shadow-sm border border-slate-200">
+              <Calculator className="h-4 w-4 text-custom-orange" />
               Kostenloser Business-Rechner
             </div>
 
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight">
-              Recruiting Business Forecast
+            <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight tracking-tight">
+              Recruiting Business
+              <span className="bg-gradient-to-r from-custom-orange to-amber-500 bg-clip-text text-transparent">
+                {" "}
+                Forecast
+              </span>
             </h1>
 
-            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto leading-relaxed">
-              Berechne dein persönliches Sicherheitsnetz & Umsatz-Ziel in wenigen Minuten –
-              <strong className="text-gray-900"> sicher, anonym und ohne Anmeldung</strong>
+            <p className="text-xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
+              Berechne dein persönliches Sicherheitsnetz & Umsatz-Ziel in wenigen Minuten.
+              <br />
+              <span className="text-slate-900 font-semibold">Sicher, anonym und ohne Anmeldung.</span>
             </p>
 
             {/* Trust indicators */}
-            <div className="flex flex-wrap justify-center items-center gap-6 text-sm text-gray-500 mb-8">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-green-600" />
-                <span>100% Datenschutz</span>
+            <div className="flex flex-wrap justify-center items-center gap-8 mb-12">
+              <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl shadow-sm border border-slate-200">
+                <Shield className="h-5 w-5 text-green-600" />
+                <span className="text-sm font-medium text-slate-700">100% Datenschutz</span>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-custom-orange" />
-                <span>Sofort einsatzbereit</span>
+              <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl shadow-sm border border-slate-200">
+                <CheckCircle className="h-5 w-5 text-custom-orange" />
+                <span className="text-sm font-medium text-slate-700">Sofort einsatzbereit</span>
               </div>
             </div>
           </div>
 
-          {/* Progress indicator */}
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-sm font-medium text-gray-700">Schritt {currentStep} von 5</span>
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-500">{Math.round(getStepProgress())}% vollständig</span>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={saveCurrentScenario} className="text-xs bg-transparent">
-                    <Save className="h-3 w-3 mr-1" />
-                    Speichern
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={exportData} className="text-xs bg-transparent">
-                    <Download className="h-3 w-3 mr-1" />
-                    Export
-                  </Button>
-                </div>
+          {/* Modern Step Navigation */}
+          <div className="mb-12">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">{currentStepData.title}</h2>
+                <p className="text-slate-600">{currentStepData.subtitle}</p>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-medium text-slate-700">Schritt {currentStep} von 5</div>
+                <div className="text-xs text-slate-500">{Math.round((currentStep / 5) * 100)}% abgeschlossen</div>
               </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+
+            {/* Step Progress */}
+            <div className="flex items-center gap-4 mb-6">
+              {steps.map((step, index) => {
+                const isActive = currentStep === step.id
+                const isCompleted = currentStep > step.id
+                const IconComponent = step.icon
+
+                return (
+                  <div key={step.id} className="flex items-center flex-1">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div
+                        className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                          isActive
+                            ? `bg-gradient-to-r ${step.color} text-white shadow-lg scale-110`
+                            : isCompleted
+                              ? "bg-green-100 text-green-600"
+                              : "bg-white text-slate-400 border border-slate-200"
+                        }`}
+                      >
+                        {isCompleted ? <Check className="h-5 w-5" /> : <IconComponent className="h-5 w-5" />}
+                      </div>
+                      <div className="hidden md:block">
+                        <div className={`text-sm font-medium ${isActive ? "text-slate-900" : "text-slate-600"}`}>
+                          {step.title}
+                        </div>
+                        <div className="text-xs text-slate-500">{step.subtitle}</div>
+                      </div>
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div
+                        className={`h-0.5 w-full mx-4 transition-all duration-300 ${
+                          isCompleted ? "bg-green-300" : "bg-slate-200"
+                        }`}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
               <div
-                className="bg-custom-orange h-2 rounded-full transition-all duration-300 ease-out"
+                className="h-full bg-gradient-to-r from-custom-orange to-amber-500 transition-all duration-700 ease-out rounded-full"
                 style={{ width: `${(currentStep / 5) * 100}%` }}
-              ></div>
+              />
             </div>
           </div>
 
           {/* Form Steps */}
-          <div className="space-y-8">
+          <div className="mb-12">
             {/* Step 1: Personal Costs */}
             {currentStep === 1 && (
-              <Card className="bg-white shadow-sm border-0 rounded-xl">
-                <CardHeader className="pb-6">
-                  <CardTitle className="flex items-center gap-3 text-gray-900 text-xl">
-                    <div className="w-10 h-10 bg-custom-orange-light rounded-lg flex items-center justify-center">
-                      <Shield className="h-5 w-5 text-custom-orange" />
+              <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+                <CardHeader className={`${currentStepData.bgColor} border-b border-slate-200/50`}>
+                  <CardTitle className="flex items-center gap-4 text-slate-900 text-2xl">
+                    <div
+                      className={`w-14 h-14 bg-gradient-to-r ${currentStepData.color} rounded-2xl flex items-center justify-center shadow-lg`}
+                    >
+                      <Home className="h-7 w-7 text-white" />
                     </div>
-                    Persönliche Lebenshaltungskosten
+                    <div>
+                      <h3 className="text-2xl font-bold">Persönliche Lebenshaltungskosten</h3>
+                      <p className="text-slate-600 font-normal text-base">
+                        Trage deine monatlichen privaten Ausgaben ein
+                      </p>
+                    </div>
                   </CardTitle>
-                  <p className="text-gray-600">Trage deine monatlichen privaten Ausgaben ein</p>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="rent" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                        Miete/Wohnkosten
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Trage hier deine Warmmiete ein, inklusive Nebenkosten wie Heizung, Wasser und Strom.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="rent"
-                          type="number"
-                          value={data.rent || ""}
-                          onChange={(e) => updateField("rent", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                <CardContent className="p-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {[
+                      {
+                        key: "rent",
+                        label: "Miete & Wohnkosten",
+                        tooltip: "Warmmiete inklusive Nebenkosten wie Heizung, Wasser und Strom",
+                        placeholder: "z.B. 1.200",
+                      },
+                      { key: "food", label: "Lebensmittel", placeholder: "z.B. 400" },
+                      { key: "insurance", label: "Versicherungen (privat)", placeholder: "z.B. 150" },
+                      { key: "mobility", label: "Mobilität", placeholder: "z.B. 200" },
+                      { key: "communication", label: "Kommunikation", placeholder: "z.B. 80" },
+                      { key: "leisure", label: "Freizeit & Konsum", placeholder: "z.B. 300" },
+                      { key: "healthInsurance", label: "Private Krankenversicherung", placeholder: "z.B. 450" },
+                      { key: "personalOther", label: "Sonstiges", placeholder: "z.B. 100" },
+                    ].map((field) => (
+                      <div key={field.key} className="space-y-3">
+                        <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                          {field.label}
+                          {field.tooltip && (
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <HelpCircle className="h-4 w-4 text-slate-400 hover:text-slate-600 transition-colors" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{field.tooltip}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            value={data[field.key as keyof FormData] || ""}
+                            onChange={(e) => updateField(field.key as keyof FormData, Number(e.target.value))}
+                            placeholder={field.placeholder}
+                            className="pl-12 h-14 text-lg border-2 border-slate-200 focus:border-blue-500 rounded-xl bg-white/50 transition-all duration-200"
+                          />
+                          <Euro className="absolute left-4 top-4 h-6 w-6 text-slate-400" />
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="food" className="text-sm font-medium text-gray-700">
-                        Lebensmittel
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="food"
-                          type="number"
-                          value={data.food || ""}
-                          onChange={(e) => updateField("food", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="insurance" className="text-sm font-medium text-gray-700">
-                        Versicherungen (privat)
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="insurance"
-                          type="number"
-                          value={data.insurance || ""}
-                          onChange={(e) => updateField("insurance", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="mobility" className="text-sm font-medium text-gray-700">
-                        Mobilität
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="mobility"
-                          type="number"
-                          value={data.mobility || ""}
-                          onChange={(e) => updateField("mobility", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="communication" className="text-sm font-medium text-gray-700">
-                        Kommunikation
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="communication"
-                          type="number"
-                          value={data.communication || ""}
-                          onChange={(e) => updateField("communication", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="leisure" className="text-sm font-medium text-gray-700">
-                        Freizeit/Konsum
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="leisure"
-                          type="number"
-                          value={data.leisure || ""}
-                          onChange={(e) => updateField("leisure", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="healthInsurance" className="text-sm font-medium text-gray-700">
-                        Private Krankenversicherung
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="healthInsurance"
-                          type="number"
-                          value={data.healthInsurance || ""}
-                          onChange={(e) => updateField("healthInsurance", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="personalOther" className="text-sm font-medium text-gray-700">
-                        Sonstiges
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="personalOther"
-                          type="number"
-                          value={data.personalOther || ""}
-                          onChange={(e) => updateField("personalOther", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
+                    ))}
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="mt-8 bg-gradient-to-r from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700">Monatliche Burnrate:</span>
-                      <span className="text-xl font-bold text-gray-900">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-700 mb-1">Monatliche Burnrate</div>
+                        <div className="text-xs text-slate-500">Deine gesamten privaten Ausgaben</div>
+                      </div>
+                      <div className="text-3xl font-bold text-slate-900">
                         {personalBurnRate.toLocaleString("de-DE")} €
-                      </span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -522,144 +486,69 @@ export default function ForecastTool() {
 
             {/* Step 2: Business Costs */}
             {currentStep === 2 && (
-              <Card className="bg-white shadow-sm border-0 rounded-xl">
-                <CardHeader className="pb-6">
-                  <CardTitle className="flex items-center gap-3 text-gray-900 text-xl">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Calculator className="h-5 w-5 text-blue-600" />
+              <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+                <CardHeader className={`${currentStepData.bgColor} border-b border-slate-200/50`}>
+                  <CardTitle className="flex items-center gap-4 text-slate-900 text-2xl">
+                    <div
+                      className={`w-14 h-14 bg-gradient-to-r ${currentStepData.color} rounded-2xl flex items-center justify-center shadow-lg`}
+                    >
+                      <Building2 className="h-7 w-7 text-white" />
                     </div>
-                    Geschäftliche Fixkosten
+                    <div>
+                      <h3 className="text-2xl font-bold">Geschäftliche Fixkosten</h3>
+                      <p className="text-slate-600 font-normal text-base">Deine monatlichen Business-Ausgaben</p>
+                    </div>
                   </CardTitle>
-                  <p className="text-gray-600">Deine monatlichen Business-Ausgaben</p>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="software" className="text-sm font-medium text-gray-700">
-                        Software-Abos
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="software"
-                          type="number"
-                          value={data.software || ""}
-                          onChange={(e) => updateField("software", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                <CardContent className="p-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {[
+                      { key: "software", label: "Software & Tools", placeholder: "z.B. 120" },
+                      { key: "internet", label: "Internet & Telefon", placeholder: "z.B. 60" },
+                      { key: "hosting", label: "Website & Hosting", placeholder: "z.B. 30" },
+                      { key: "taxAdvisor", label: "Steuerberater", placeholder: "z.B. 150" },
+                      { key: "businessInsurance", label: "Versicherungen (beruflich)", placeholder: "z.B. 80" },
+                      { key: "marketing", label: "Marketing & Werbung", placeholder: "z.B. 200" },
+                    ].map((field) => (
+                      <div key={field.key} className="space-y-3">
+                        <Label className="text-sm font-semibold text-slate-700">{field.label}</Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            value={data[field.key as keyof FormData] || ""}
+                            onChange={(e) => updateField(field.key as keyof FormData, Number(e.target.value))}
+                            placeholder={field.placeholder}
+                            className="pl-12 h-14 text-lg border-2 border-slate-200 focus:border-purple-500 rounded-xl bg-white/50 transition-all duration-200"
+                          />
+                          <Euro className="absolute left-4 top-4 h-6 w-6 text-slate-400" />
+                        </div>
                       </div>
-                    </div>
+                    ))}
 
-                    <div className="space-y-2">
-                      <Label htmlFor="internet" className="text-sm font-medium text-gray-700">
-                        Internet/Telefon
-                      </Label>
+                    <div className="space-y-3 md:col-span-2">
+                      <Label className="text-sm font-semibold text-slate-700">Sonstige Kosten</Label>
                       <div className="relative">
                         <Input
-                          id="internet"
-                          type="number"
-                          value={data.internet || ""}
-                          onChange={(e) => updateField("internet", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="hosting" className="text-sm font-medium text-gray-700">
-                        Hosting & Website
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="hosting"
-                          type="number"
-                          value={data.hosting || ""}
-                          onChange={(e) => updateField("hosting", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="taxAdvisor" className="text-sm font-medium text-gray-700">
-                        Steuerberatung
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="taxAdvisor"
-                          type="number"
-                          value={data.taxAdvisor || ""}
-                          onChange={(e) => updateField("taxAdvisor", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="businessInsurance" className="text-sm font-medium text-gray-700">
-                        Versicherungen (beruflich)
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="businessInsurance"
-                          type="number"
-                          value={data.businessInsurance || ""}
-                          onChange={(e) => updateField("businessInsurance", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="marketing" className="text-sm font-medium text-gray-700">
-                        Marketingbudget
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="marketing"
-                          type="number"
-                          value={data.marketing || ""}
-                          onChange={(e) => updateField("marketing", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
-                        />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="businessOther" className="text-sm font-medium text-gray-700">
-                        Sonstige Kosten
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="businessOther"
                           type="number"
                           value={data.businessOther || ""}
                           onChange={(e) => updateField("businessOther", Number(e.target.value))}
-                          placeholder="0"
-                          className="pl-8"
+                          placeholder="z.B. 100"
+                          className="pl-12 h-14 text-lg border-2 border-slate-200 focus:border-purple-500 rounded-xl bg-white/50 transition-all duration-200"
                         />
-                        <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                        <Euro className="absolute left-4 top-4 h-6 w-6 text-slate-400" />
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="mt-8 bg-gradient-to-r from-purple-50 to-purple-100 rounded-2xl p-6 border border-purple-200">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700">Monatliche Business-Fixkosten:</span>
-                      <span className="text-xl font-bold text-gray-900">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-700 mb-1">Business-Fixkosten</div>
+                        <div className="text-xs text-slate-500">Deine monatlichen Geschäftsausgaben</div>
+                      </div>
+                      <div className="text-3xl font-bold text-slate-900">
                         {businessFixedCosts.toLocaleString("de-DE")} €
-                      </span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -668,126 +557,116 @@ export default function ForecastTool() {
 
             {/* Step 3: Tax Settings */}
             {currentStep === 3 && (
-              <Card className="bg-white shadow-sm border-0 rounded-xl">
-                <CardHeader className="pb-6">
-                  <CardTitle className="flex items-center gap-3 text-gray-900 text-xl">
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="h-5 w-5 text-green-600" />
-                    </div>
-                    Steuerliche Rücklagen
-                  </CardTitle>
-                  <p className="text-gray-600">Plane deine Steuerlast richtig ein</p>
-                </CardHeader>
-                <CardContent className="space-y-8">
-                  <div className="space-y-4">
-                    <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      Erwarteter Einkommenssteuersatz:{" "}
-                      <span className="font-bold text-custom-orange">{data.incomeTaxRate}%</span>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p className="mb-2">Der Einkommenssteuersatz hängt von deinem Jahreseinkommen ab:</p>
-                          <ul className="text-xs space-y-1">
-                            <li>• bis 10.908 €: 0%</li>
-                            <li>• 10.909 - 62.809 €: 14-42%</li>
-                            <li>• 62.810 - 277.825 €: 42%</li>
-                            <li>• über 277.826 €: 45%</li>
-                          </ul>
-                        </TooltipContent>
-                      </Tooltip>
-                      <a
-                        href="https://www.bundesfinanzministerium.de/Content/DE/Standardartikel/Themen/Steuern/Steuerarten/Einkommensteuer/einkommensteuer.html"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    </Label>
-                    <Slider
-                      value={[data.incomeTaxRate]}
-                      onValueChange={(value) => updateField("incomeTaxRate", value[0])}
-                      max={50}
-                      step={1}
-                      className="mt-2"
-                    />
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>0%</span>
-                      <span>50%</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      Erwarteter Gewerbesteuersatz:{" "}
-                      <span className="font-bold text-custom-orange">{data.businessTaxRate}%</span>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p>
-                            Die Gewerbesteuer variiert je nach Gemeinde. Der Grundsteuersatz beträgt 3,5%, wird aber mit
-                            dem Hebesatz der Gemeinde multipliziert. Durchschnittlich liegt der effektive Satz bei
-                            14-17%.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <a
-                        href="https://www.bundesfinanzministerium.de/Content/DE/Standardartikel/Themen/Steuern/Steuerarten/Gewerbesteuer/gewerbesteuer.html"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    </Label>
-                    <Slider
-                      value={[data.businessTaxRate]}
-                      onValueChange={(value) => updateField("businessTaxRate", value[0])}
-                      max={20}
-                      step={1}
-                      className="mt-2"
-                    />
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>0%</span>
-                      <span>20%</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label htmlFor="vat" className="text-sm font-medium text-gray-700">
-                      Umsatzsteuerpflicht
-                    </Label>
-                    <Select
-                      value={data.vatRequired ? "yes" : "no"}
-                      onValueChange={(value) => updateField("vatRequired", value === "yes")}
+              <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+                <CardHeader className={`${currentStepData.bgColor} border-b border-slate-200/50`}>
+                  <CardTitle className="flex items-center gap-4 text-slate-900 text-2xl">
+                    <div
+                      className={`w-14 h-14 bg-gradient-to-r ${currentStepData.color} rounded-2xl flex items-center justify-center shadow-lg`}
                     >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no">Nein (Kleinunternehmer)</SelectItem>
-                        <SelectItem value="yes">Ja (Umsatzsteuerpflichtig)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-sm text-gray-500 flex items-start gap-2">
-                      <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                      <span>
-                        Tipp: Wenn du über 22.000 € Jahresumsatz liegst, bist du meist nicht mehr Kleinunternehmer und
-                        musst 19% Umsatzsteuer abführen.
-                        <a
-                          href="https://www.bundesfinanzministerium.de/Content/DE/Standardartikel/Themen/Steuern/Steuerarten/Umsatzsteuer/umsatzsteuer.html"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 ml-1"
-                        >
-                          Mehr erfahren <ExternalLink className="h-3 w-3 inline" />
-                        </a>
-                      </span>
-                    </p>
+                      <Receipt className="h-7 w-7 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold">Steuerliche Rücklagen</h3>
+                      <p className="text-slate-600 font-normal text-base">Plane deine Steuerlast richtig ein</p>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-8 space-y-10">
+                  <Alert className="border-blue-200 bg-blue-50">
+                    <Info className="h-5 w-5 text-blue-600" />
+                    <AlertDescription className="text-blue-800">
+                      <strong>Wichtiger Hinweis:</strong> Als Selbstständiger zahlst du Einkommensteuer, Gewerbesteuer
+                      und ggf. Umsatzsteuer. Die Höhe hängt von deinem Einkommen und Wohnort ab.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="space-y-8">
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-semibold text-slate-700 flex items-center gap-2">
+                          Einkommenssteuersatz
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <HelpCircle className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="mb-2">Abhängig vom Jahreseinkommen:</p>
+                              <ul className="text-xs space-y-1">
+                                <li>• bis 10.908 €: 0%</li>
+                                <li>• 10.909 - 62.809 €: 14-42%</li>
+                                <li>• über 62.810 €: 42-45%</li>
+                              </ul>
+                            </TooltipContent>
+                          </Tooltip>
+                        </Label>
+                        <div className="text-2xl font-bold text-green-600">{data.incomeTaxRate}%</div>
+                      </div>
+                      <Slider
+                        value={[data.incomeTaxRate]}
+                        onValueChange={(value) => updateField("incomeTaxRate", value[0])}
+                        max={50}
+                        step={1}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-sm text-slate-500">
+                        <span>0%</span>
+                        <span>50%</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-semibold text-slate-700 flex items-center gap-2">
+                          Gewerbesteuersatz
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <HelpCircle className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>
+                                Variiert je nach Gemeinde. Durchschnittlich 14-17%. Der Grundsatz beträgt 3,5%, wird
+                                aber mit dem Hebesatz multipliziert.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </Label>
+                        <div className="text-2xl font-bold text-green-600">{data.businessTaxRate}%</div>
+                      </div>
+                      <Slider
+                        value={[data.businessTaxRate]}
+                        onValueChange={(value) => updateField("businessTaxRate", value[0])}
+                        max={20}
+                        step={1}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-sm text-slate-500">
+                        <span>0%</span>
+                        <span>20%</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <Label className="text-base font-semibold text-slate-700">Umsatzsteuerpflicht</Label>
+                      <Select
+                        value={data.vatRequired ? "yes" : "no"}
+                        onValueChange={(value) => updateField("vatRequired", value === "yes")}
+                      >
+                        <SelectTrigger className="h-14 text-lg border-2 border-slate-200 focus:border-green-500 rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="no">Nein (Kleinunternehmer)</SelectItem>
+                          <SelectItem value="yes">Ja (19% Umsatzsteuer)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-slate-500 flex items-start gap-2">
+                        <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                        <span>
+                          Bei über 22.000 € Jahresumsatz bist du meist umsatzsteuerpflichtig und musst 19% Umsatzsteuer
+                          abführen.
+                        </span>
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -795,74 +674,77 @@ export default function ForecastTool() {
 
             {/* Step 4: Reserves */}
             {currentStep === 4 && (
-              <Card className="bg-white shadow-sm border-0 rounded-xl">
-                <CardHeader className="pb-6">
-                  <CardTitle className="flex items-center gap-3 text-gray-900 text-xl">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Shield className="h-5 w-5 text-purple-600" />
-                    </div>
-                    Liquiditätsreserve & Sicherheitspolster
-                  </CardTitle>
-                  <p className="text-gray-600">Wie gut bist du für schwierige Zeiten gerüstet?</p>
-                </CardHeader>
-                <CardContent className="space-y-8">
-                  <div className="space-y-3">
-                    <Label
-                      htmlFor="currentReserves"
-                      className="text-sm font-medium text-gray-700 flex items-center gap-2"
+              <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+                <CardHeader className={`${currentStepData.bgColor} border-b border-slate-200/50`}>
+                  <CardTitle className="flex items-center gap-4 text-slate-900 text-2xl">
+                    <div
+                      className={`w-14 h-14 bg-gradient-to-r ${currentStepData.color} rounded-2xl flex items-center justify-center shadow-lg`}
                     >
-                      Aktuell vorhandene Rücklagen
+                      <Wallet className="h-7 w-7 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold">Liquiditätsreserve</h3>
+                      <p className="text-slate-600 font-normal text-base">
+                        Dein Sicherheitspolster für schwierige Zeiten
+                      </p>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-8 space-y-10">
+                  <div className="space-y-6">
+                    <Label className="text-base font-semibold text-slate-700 flex items-center gap-2">
+                      Vorhandene Rücklagen
                       <Tooltip>
                         <TooltipTrigger>
-                          <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                          <HelpCircle className="h-4 w-4 text-slate-400 hover:text-slate-600" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p>
-                            Hier sollten nur liquide Mittel eingetragen werden, die innerhalb von 1-2 Wochen verfügbar
-                            sind. Dazu gehören: Giro-/Tagesgeldkonten, kurzfristige Festgelder. Nicht: Aktien, ETFs,
-                            Immobilien oder langfristige Anlagen.
+                            Nur liquide Mittel (verfügbar in 1-2 Wochen): Giro-, Tagesgeld-, kurzfristige
+                            Festgeldkonten. Keine Aktien, ETFs oder Immobilien.
                           </p>
                         </TooltipContent>
                       </Tooltip>
                     </Label>
                     <div className="relative">
                       <Input
-                        id="currentReserves"
                         type="number"
                         value={data.currentReserves || ""}
                         onChange={(e) => updateField("currentReserves", Number(e.target.value))}
-                        placeholder="0"
-                        className="pl-8"
+                        placeholder="z.B. 15.000"
+                        className="pl-12 h-14 text-lg border-2 border-slate-200 focus:border-amber-500 rounded-xl bg-white/50"
                       />
-                      <Euro className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                      <Euro className="absolute left-4 top-4 h-6 w-6 text-slate-400" />
                     </div>
-                    <p className="text-xs text-gray-500">
-                      💡 Nur liquide Mittel (verfügbar in 1-2 Wochen): Giro-, Tagesgeld-, kurzfristige Festgeldkonten
-                    </p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <p className="text-sm text-blue-800">
+                        💡 <strong>Nur liquide Mittel:</strong> Giro-, Tagesgeld-, kurzfristige Festgeldkonten
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <Label className="text-sm font-medium text-gray-700">
-                      Gewünschtes Sicherheits-Polster:{" "}
-                      <span className="font-bold text-custom-orange">{data.desiredBuffer} Monate</span>
-                    </Label>
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-semibold text-slate-700">Gewünschtes Sicherheitspolster</Label>
+                      <div className="text-2xl font-bold text-amber-600">{data.desiredBuffer} Monate</div>
+                    </div>
                     <Slider
                       value={[data.desiredBuffer]}
                       onValueChange={(value) => updateField("desiredBuffer", value[0])}
                       min={1}
                       max={24}
                       step={1}
-                      className="mt-2"
+                      className="w-full"
                     />
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="flex justify-between text-sm text-slate-500">
                       <span>1 Monat</span>
                       <span>24 Monate</span>
                     </div>
                   </div>
 
                   {data.currentReserves > 0 && (
-                    <Alert className="bg-blue-50 border-blue-200">
-                      <Info className="h-4 w-4 text-blue-600" />
+                    <Alert className="border-blue-200 bg-blue-50">
+                      <Info className="h-5 w-5 text-blue-600" />
                       <AlertDescription className="text-blue-800">
                         <strong>Deine aktuelle Situation:</strong> Du könntest {monthsOfReserves.toFixed(1)} Monate ohne
                         Einnahmen überstehen.
@@ -875,27 +757,31 @@ export default function ForecastTool() {
 
             {/* Step 5: Revenue Planning */}
             {currentStep === 5 && (
-              <Card className="bg-white shadow-sm border-0 rounded-xl">
-                <CardHeader className="pb-6">
-                  <CardTitle className="flex items-center gap-3 text-gray-900 text-xl">
-                    <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="h-5 w-5 text-teal-600" />
+              <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+                <CardHeader className={`${currentStepData.bgColor} border-b border-slate-200/50`}>
+                  <CardTitle className="flex items-center gap-4 text-slate-900 text-2xl">
+                    <div
+                      className={`w-14 h-14 bg-gradient-to-r ${currentStepData.color} rounded-2xl flex items-center justify-center shadow-lg`}
+                    >
+                      <Target className="h-7 w-7 text-white" />
                     </div>
-                    Geplante Einnahmen (Forecast)
+                    <div>
+                      <h3 className="text-2xl font-bold">Umsatz-Prognose</h3>
+                      <p className="text-slate-600 font-normal text-base">Wie viel kannst du realistisch verdienen?</p>
+                    </div>
                   </CardTitle>
-                  <p className="text-gray-600">Wie viel kannst du realistisch verdienen?</p>
                 </CardHeader>
-                <CardContent className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      <Label htmlFor="projectFee" className="text-sm font-medium text-gray-700">
-                        Durchschnittlicher Umsatz pro Vermittlung
-                      </Label>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm text-gray-600">
-                          <span>1.000 €</span>
-                          <span className="font-medium">{data.projectFee.toLocaleString("de-DE")} €</span>
-                          <span>50.000 €</span>
+                <CardContent className="p-8 space-y-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="space-y-6">
+                      <Label className="text-base font-semibold text-slate-700">Umsatz pro Vermittlung</Label>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-slate-500">1.000 €</span>
+                          <div className="text-2xl font-bold text-teal-600">
+                            {data.projectFee.toLocaleString("de-DE")} €
+                          </div>
+                          <span className="text-sm text-slate-500">50.000 €</span>
                         </div>
                         <Slider
                           value={[data.projectFee]}
@@ -903,20 +789,18 @@ export default function ForecastTool() {
                           min={1000}
                           max={50000}
                           step={500}
-                          className="mt-2"
+                          className="w-full"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <Label htmlFor="projectsPerYear" className="text-sm font-medium text-gray-700">
-                        Erwartete Vermittlungen im ersten Jahr
-                      </Label>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm text-gray-600">
-                          <span>1</span>
-                          <span className="font-medium">{data.projectsPerYear} Vermittlungen</span>
-                          <span>12</span>
+                    <div className="space-y-6">
+                      <Label className="text-base font-semibold text-slate-700">Vermittlungen im ersten Jahr</Label>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-slate-500">1</span>
+                          <div className="text-2xl font-bold text-teal-600">{data.projectsPerYear}</div>
+                          <span className="text-sm text-slate-500">12</span>
                         </div>
                         <Slider
                           value={[data.projectsPerYear]}
@@ -924,224 +808,209 @@ export default function ForecastTool() {
                           min={1}
                           max={12}
                           step={1}
-                          className="mt-2"
+                          className="w-full"
                         />
-                        <p className="text-xs text-gray-500">
-                          Das entspricht {(data.projectsPerYear / 12).toFixed(1)} Vermittlungen pro Monat
+                        <p className="text-sm text-slate-500 text-center">
+                          ≈ {(data.projectsPerYear / 12).toFixed(1)} Vermittlungen pro Monat
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-6">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                        <Info className="h-4 w-4 text-blue-600" />
-                        Auftragswahrscheinlichkeit - Was bedeutet das?
-                      </h4>
-                      <p className="text-sm text-gray-700 mb-3">
-                        Die Prozentsätze geben an, mit welcher Wahrscheinlichkeit du deine geplanten{" "}
-                        {data.projectsPerYear} Vermittlungen pro Jahr tatsächlich realisierst:
-                      </p>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span>• Pessimistisch ({data.pessimisticRate}%):</span>
-                          <span className="font-medium">
-                            {Math.round((data.projectsPerYear * data.pessimisticRate) / 100)} Vermittlungen/Jahr
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>• Realistisch ({data.realisticRate}%):</span>
-                          <span className="font-medium">
-                            {Math.round((data.projectsPerYear * data.realisticRate) / 100)} Vermittlungen/Jahr
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>• Optimistisch ({data.optimisticRate}%):</span>
-                          <span className="font-medium">
-                            {Math.round((data.projectsPerYear * data.optimisticRate) / 100)} Vermittlungen/Jahr
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                  <Alert className="border-blue-200 bg-blue-50">
+                    <Info className="h-5 w-5 text-blue-600" />
+                    <AlertDescription className="text-blue-800">
+                      <strong>Auftragswahrscheinlichkeit:</strong> Die Prozentsätze geben an, mit welcher
+                      Wahrscheinlichkeit du deine geplanten {data.projectsPerYear} Vermittlungen pro Jahr realisierst.
+                    </AlertDescription>
+                  </Alert>
 
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div className="space-y-4">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Pessimistisch: <span className="font-bold text-red-600">{data.pessimisticRate}%</span>
-                      </Label>
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+                        <Label className="text-base font-semibold text-slate-700">Pessimistisch</Label>
+                        <div className="text-xl font-bold text-red-600">{data.pessimisticRate}%</div>
+                      </div>
                       <Slider
                         value={[data.pessimisticRate]}
                         onValueChange={(value) => updateField("pessimisticRate", value[0])}
                         max={100}
                         step={5}
-                        className="mt-2"
+                        className="w-full"
                       />
+                      <p className="text-sm text-slate-500">
+                        {Math.round((data.projectsPerYear * data.pessimisticRate) / 100)} Vermittlungen/Jahr
+                      </p>
                     </div>
 
                     <div className="space-y-4">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Realistisch: <span className="font-bold text-amber-600">{data.realisticRate}%</span>
-                      </Label>
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 bg-amber-500 rounded-full"></div>
+                        <Label className="text-base font-semibold text-slate-700">Realistisch</Label>
+                        <div className="text-xl font-bold text-amber-600">{data.realisticRate}%</div>
+                      </div>
                       <Slider
                         value={[data.realisticRate]}
                         onValueChange={(value) => updateField("realisticRate", value[0])}
                         max={100}
                         step={5}
-                        className="mt-2"
+                        className="w-full"
                       />
+                      <p className="text-sm text-slate-500">
+                        {Math.round((data.projectsPerYear * data.realisticRate) / 100)} Vermittlungen/Jahr
+                      </p>
                     </div>
 
                     <div className="space-y-4">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Optimistisch: <span className="font-bold text-green-600">{data.optimisticRate}%</span>
-                      </Label>
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+                        <Label className="text-base font-semibold text-slate-700">Optimistisch</Label>
+                        <div className="text-xl font-bold text-green-600">{data.optimisticRate}%</div>
+                      </div>
                       <Slider
                         value={[data.optimisticRate]}
                         onValueChange={(value) => updateField("optimisticRate", value[0])}
                         max={100}
                         step={5}
-                        className="mt-2"
+                        className="w-full"
                       />
+                      <p className="text-sm text-slate-500">
+                        {Math.round((data.projectsPerYear * data.optimisticRate) / 100)} Vermittlungen/Jahr
+                      </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             )}
+          </div>
 
-            {/* Navigation Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-between">
+          {/* Modern Navigation */}
+          <div className="flex items-center justify-between gap-6">
+            <Button
+              onClick={prevStep}
+              variant="outline"
+              size="lg"
+              disabled={currentStep === 1}
+              className="bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 px-6 py-3 h-auto"
+            >
+              <ArrowLeft className="mr-2 h-5 w-5" />
+              Zurück
+            </Button>
+
+            <div className="flex items-center gap-4">
+              {currentStep < 5 ? (
+                <Button
+                  onClick={nextStep}
+                  size="lg"
+                  disabled={!validateStep(currentStep)}
+                  className="bg-gradient-to-r from-custom-orange to-amber-500 hover:from-custom-orange-dark hover:to-amber-600 text-white px-8 py-3 h-auto font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+                >
+                  Weiter
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleCalculate}
+                  size="lg"
+                  disabled={isCalculating || !validateStep(currentStep)}
+                  className="bg-gradient-to-r from-custom-orange to-amber-500 hover:from-custom-orange-dark hover:to-amber-600 text-white px-8 py-3 h-auto font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+                >
+                  {isCalculating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Berechne...
+                    </>
+                  ) : (
+                    <>
+                      <Calculator className="mr-2 h-5 w-5" />
+                      Jetzt berechnen
+                    </>
+                  )}
+                </Button>
+              )}
+
               <Button
-                onClick={prevStep}
+                onClick={resetData}
                 variant="outline"
                 size="lg"
-                disabled={currentStep === 1}
-                className="order-2 sm:order-1 bg-transparent"
+                className="bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-600 px-6 py-3 h-auto"
               >
-                Zurück
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Reset
               </Button>
-
-              <div className="flex gap-4 order-1 sm:order-2">
-                {currentStep < 5 ? (
-                  <Button
-                    onClick={nextStep}
-                    size="lg"
-                    disabled={!validateStep(currentStep)}
-                    className="bg-custom-orange hover:bg-custom-orange-dark text-white px-8 flex-1 sm:flex-none disabled:opacity-50"
-                  >
-                    Weiter
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleCalculate}
-                    size="lg"
-                    disabled={isCalculating || !validateStep(currentStep)}
-                    className="bg-custom-orange hover:bg-custom-orange-dark text-white px-8 flex-1 sm:flex-none disabled:opacity-50"
-                  >
-                    {isCalculating ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Berechne...
-                      </>
-                    ) : (
-                      <>
-                        <Calculator className="mr-2 h-5 w-5" />
-                        Jetzt berechnen
-                      </>
-                    )}
-                  </Button>
-                )}
-
-                <Button
-                  onClick={resetData}
-                  variant="outline"
-                  size="lg"
-                  className="text-gray-600 hover:text-gray-800 bg-transparent"
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Reset
-                </Button>
-              </div>
             </div>
+          </div>
 
-            {/* Results */}
-            {showResults && (
-              <div id="forecast-results" className="space-y-8 animate-slide-in">
-                <ScenarioResults
-                  breakEvenGross={breakEvenGross}
-                  totalMonthlyCosts={totalMonthlyCosts}
-                  scenarios={scenarios}
-                  monthsOfReserves={monthsOfReserves}
-                  desiredBuffer={data.desiredBuffer}
-                  projectsPerYear={data.projectsPerYear}
-                  projectFee={data.projectFee}
-                  taxRate={data.incomeTaxRate + data.businessTaxRate + (data.vatRequired ? 19 : 0)}
-                />
+          {/* Results */}
+          {showResults && (
+            <div id="forecast-results" className="mt-16 space-y-8 animate-slide-in">
+              <ScenarioResults
+                breakEvenGross={breakEvenGross}
+                totalMonthlyCosts={totalMonthlyCosts}
+                scenarios={scenarios}
+                monthsOfReserves={monthsOfReserves}
+                desiredBuffer={data.desiredBuffer}
+                projectsPerYear={data.projectsPerYear}
+                projectFee={data.projectFee}
+                taxRate={data.incomeTaxRate + data.businessTaxRate + (data.vatRequired ? 19 : 0)}
+              />
 
-                <ForecastChart
-                  breakEven={breakEvenGross}
-                  scenarios={scenarios}
-                  labels={["Pessimistisch", "Realistisch", "Optimistisch"]}
-                />
+              <ForecastChart
+                breakEven={breakEvenGross}
+                scenarios={scenarios}
+                labels={["Pessimistisch", "Realistisch", "Optimistisch"]}
+              />
 
-                {/* Share Results */}
-                <Card className="bg-white shadow-sm border-0 rounded-xl">
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                      <p className="text-gray-600 text-center sm:text-left">
-                        Teile deine Ergebnisse oder speichere sie für später:
-                      </p>
-                      <div className="flex gap-3">
-                        <Button
-                          onClick={shareResults}
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center gap-2 bg-transparent"
-                        >
-                          <Share2 className="h-4 w-4" />
-                          Teilen
-                        </Button>
-                        <Button
-                          onClick={exportData}
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center gap-2 bg-transparent"
-                        >
-                          <Download className="h-4 w-4" />
-                          Exportieren
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              {/* Share Results */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-8">
+                  <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+                    <p className="text-slate-600 text-center sm:text-left text-lg">Teile deine Ergebnisse:</p>
+                    <Button
+                      onClick={shareResults}
+                      variant="outline"
+                      size="lg"
+                      className="bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-6 py-3 h-auto"
+                    >
+                      <Share2 className="h-5 w-5 mr-2" />
+                      Ergebnisse teilen
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {/* CTA */}
-                <Card className="bg-gradient-to-r from-custom-orange to-amber-500 text-white border-0 rounded-xl">
-                  <CardContent className="pt-8 pb-8 text-center">
-                    <h3 className="text-2xl font-bold mb-4">Willst du tiefer einsteigen? 📈</h3>
-                    <p className="text-lg mb-6 opacity-90 max-w-2xl mx-auto">
+              {/* CTA */}
+              <Card className="border-0 shadow-2xl bg-gradient-to-r from-custom-orange to-amber-500 text-white overflow-hidden">
+                <CardContent className="p-12 text-center relative">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
+                  <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-24 -translate-x-24"></div>
+                  <div className="relative z-10">
+                    <h3 className="text-3xl font-bold mb-6">Bereit für den nächsten Schritt? 🚀</h3>
+                    <p className="text-xl mb-8 opacity-90 max-w-3xl mx-auto">
                       In unserem Recruiting-Kurs lernst du, wie du Kunden gewinnst, dein Business absicherst und
                       nachhaltig aufbaust – mit praxiserprobten Strategien und persönlicher Betreuung.
                     </p>
                     <a href="https://getexperts.academy/" target="_blank" rel="noopener noreferrer">
                       <Button
                         size="lg"
-                        className="bg-white text-custom-orange hover:bg-gray-100 px-8 py-3 text-lg font-semibold rounded-lg"
+                        className="bg-white text-custom-orange hover:bg-slate-50 px-10 py-4 text-xl font-bold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-200 h-auto"
                       >
                         Jetzt starten →
                       </Button>
                     </a>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Privacy Notice */}
-          <div className="mt-16 text-center">
-            <div className="inline-flex items-center gap-2 bg-green-50 text-green-800 px-4 py-2 rounded-lg text-sm">
-              <Shield className="h-4 w-4" />
-              <span>
-                <strong>100% Datenschutz:</strong> Alle Daten bleiben auf deinem Gerät
+          <div className="mt-20 text-center">
+            <div className="inline-flex items-center gap-3 bg-white/80 backdrop-blur-sm text-slate-700 px-6 py-4 rounded-2xl border border-slate-200 shadow-sm">
+              <Shield className="h-5 w-5 text-green-600" />
+              <span className="font-medium">
+                <strong>100% Datenschutz:</strong> Alle Daten bleiben sicher auf deinem Gerät
               </span>
             </div>
           </div>
