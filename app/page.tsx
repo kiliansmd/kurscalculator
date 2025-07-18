@@ -26,6 +26,7 @@ import {
   Receipt,
   Wallet,
   Target,
+  Lock,
 } from "lucide-react"
 import { ForecastChart } from "@/components/forecast-chart"
 import { ScenarioResults } from "@/components/scenario-results"
@@ -60,9 +61,9 @@ interface FormData {
   currentReserves: number
   desiredBuffer: number
 
-  // Revenue planning
-  projectFee: number
-  projectsPerYear: number
+  // Revenue planning - Fixe Werte basierend auf Erfahrung
+  projectFee: number // Fest: 60k * 20% = 12.000€
+  projectsPerYear: number // Variable: Anzahl Vermittlungen
   pessimisticRate: number
   realisticRate: number
   optimisticRate: number
@@ -89,8 +90,8 @@ const defaultData: FormData = {
   vatRequired: false,
   currentReserves: 0,
   desiredBuffer: 6,
-  projectFee: 10000,
-  projectsPerYear: 6,
+  projectFee: 12000, // Fest: 60k€ * 20% = 12.000€ pro Vermittlung
+  projectsPerYear: 6, // Variable: Anzahl Vermittlungen
   pessimisticRate: 30,
   realisticRate: 60,
   optimisticRate: 90,
@@ -131,8 +132,8 @@ const steps = [
   },
   {
     id: 5,
-    title: "Umsatz",
-    subtitle: "Prognose",
+    title: "Vermittlungen",
+    subtitle: "Deine Ziele",
     icon: Target,
     color: "from-teal-500 to-teal-600",
     bgColor: "bg-teal-50",
@@ -146,12 +147,19 @@ export default function ForecastTool() {
   const [showPromoModal, setShowPromoModal] = useState(false)
   const [isCalculating, setIsCalculating] = useState(false)
 
+  // Fixe Werte basierend auf Erfahrung
+  const salaryBase = 60000 // 60k€ brutto
+  const commissionRate = 20 // 20% Provision
+
   // Load data from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem("recruiting-forecast-data")
     if (saved) {
       try {
-        setData(JSON.parse(saved))
+        const savedData = JSON.parse(saved)
+        // Stelle sicher, dass die fixen Werte korrekt sind
+        savedData.projectFee = 12000
+        setData(savedData)
       } catch (e) {
         console.error("Error loading saved data:", e)
       }
@@ -232,7 +240,7 @@ export default function ForecastTool() {
       case 4:
         return data.desiredBuffer > 0
       case 5:
-        return data.projectFee > 0 && data.projectsPerYear > 0
+        return data.projectsPerYear > 0
       default:
         return true
     }
@@ -755,7 +763,7 @@ export default function ForecastTool() {
               </Card>
             )}
 
-            {/* Step 5: Revenue Planning */}
+            {/* Step 5: Revenue Planning - Nur Vermittlungen variabel */}
             {currentStep === 5 && (
               <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
                 <CardHeader className={`${currentStepData.bgColor} border-b border-slate-200/50`}>
@@ -766,42 +774,64 @@ export default function ForecastTool() {
                       <Target className="h-7 w-7 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold">Umsatz-Prognose</h3>
-                      <p className="text-slate-600 font-normal text-base">Wie viel kannst du realistisch verdienen?</p>
+                      <h3 className="text-2xl font-bold">Vermittlungs-Prognose</h3>
+                      <p className="text-slate-600 font-normal text-base">
+                        Basierend auf Erfahrungswerten - nur Anzahl ist variabel
+                      </p>
                     </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-8 space-y-10">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <Alert className="border-blue-200 bg-blue-50">
+                    <Info className="h-5 w-5 text-blue-600" />
+                    <AlertDescription className="text-blue-800">
+                      <strong>Realistische Basis:</strong> 60.000€ Durchschnittsgehalt und 20% Provision basieren auf
+                      unseren Erfahrungswerten. Nur die Anzahl der Vermittlungen kannst du beeinflussen - sei
+                      realistisch!
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                    {/* Fixe Werte - nur zur Anzeige */}
                     <div className="space-y-6">
-                      <Label className="text-base font-semibold text-slate-700">Umsatz pro Vermittlung</Label>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-slate-500">1.000 €</span>
-                          <div className="text-2xl font-bold text-teal-600">
-                            {data.projectFee.toLocaleString("de-DE")} €
-                          </div>
-                          <span className="text-sm text-slate-500">50.000 €</span>
-                        </div>
-                        <Slider
-                          value={[data.projectFee]}
-                          onValueChange={(value) => updateField("projectFee", value[0])}
-                          min={1000}
-                          max={50000}
-                          step={500}
-                          className="w-full"
-                        />
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-semibold text-slate-700 flex items-center gap-2">
+                          Durchschnittsgehalt
+                          <Lock className="h-4 w-4 text-slate-400" />
+                        </Label>
+                        <span className="text-2xl font-bold text-slate-600">
+                          {salaryBase.toLocaleString("de-DE")} €
+                        </span>
+                      </div>
+                      <div className="bg-slate-100 rounded-lg p-4 text-center">
+                        <p className="text-sm text-slate-600 font-medium">Basierend auf Erfahrungswerten</p>
+                        <p className="text-xs text-slate-500 mt-1">Brutto-Jahresgehalt der Kandidaten</p>
                       </div>
                     </div>
 
                     <div className="space-y-6">
-                      <Label className="text-base font-semibold text-slate-700">Vermittlungen im ersten Jahr</Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-semibold text-slate-700 flex items-center gap-2">
+                          Provision
+                          <Lock className="h-4 w-4 text-slate-400" />
+                        </Label>
+                        <span className="text-2xl font-bold text-slate-600">{commissionRate}%</span>
+                      </div>
+                      <div className="bg-slate-100 rounded-lg p-4 text-center">
+                        <p className="text-sm text-slate-600 font-medium">Realistischer Branchendurchschnitt</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          = {formatCurrency(salaryBase * (commissionRate / 100))} pro Vermittlung
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Variable Vermittlungen */}
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-semibold text-slate-700">Vermittlungen pro Jahr</Label>
+                        <span className="text-2xl font-bold text-teal-600">{data.projectsPerYear}</span>
+                      </div>
                       <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-slate-500">1</span>
-                          <div className="text-2xl font-bold text-teal-600">{data.projectsPerYear}</div>
-                          <span className="text-sm text-slate-500">12</span>
-                        </div>
                         <Slider
                           value={[data.projectsPerYear]}
                           onValueChange={(value) => updateField("projectsPerYear", value[0])}
@@ -810,6 +840,10 @@ export default function ForecastTool() {
                           step={1}
                           className="w-full"
                         />
+                        <div className="flex justify-between text-xs text-slate-500">
+                          <span>1</span>
+                          <span>12</span>
+                        </div>
                         <p className="text-sm text-slate-500 text-center">
                           ≈ {(data.projectsPerYear / 12).toFixed(1)} Vermittlungen pro Monat
                         </p>
@@ -817,13 +851,17 @@ export default function ForecastTool() {
                     </div>
                   </div>
 
-                  <Alert className="border-blue-200 bg-blue-50">
-                    <Info className="h-5 w-5 text-blue-600" />
-                    <AlertDescription className="text-blue-800">
-                      <strong>Auftragswahrscheinlichkeit:</strong> Die Prozentsätze geben an, mit welcher
-                      Wahrscheinlichkeit du deine geplanten {data.projectsPerYear} Vermittlungen pro Jahr realisierst.
-                    </AlertDescription>
-                  </Alert>
+                  <div className="bg-gradient-to-r from-teal-50 to-teal-100 rounded-2xl p-6 border border-teal-200">
+                    <div className="text-center">
+                      <h4 className="text-lg font-semibold text-teal-900 mb-2">Dein Umsatzpotenzial</h4>
+                      <div className="text-3xl font-bold text-teal-800 mb-2">
+                        {formatCurrency(data.projectsPerYear * salaryBase * (commissionRate / 100))} / Jahr
+                      </div>
+                      <p className="text-sm text-teal-700">
+                        {data.projectsPerYear} Vermittlungen × {formatCurrency(salaryBase * (commissionRate / 100))}
+                      </p>
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div className="space-y-4">

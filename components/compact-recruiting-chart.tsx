@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp, Euro, Calendar, Users, Play, RotateCcw, Sparkles } from "lucide-react"
+import { TrendingUp, Euro, Calendar, Users, Play, RotateCcw, Sparkles, Lock } from "lucide-react"
 
 interface CompactRecruitingChartProps {
   className?: string
@@ -15,8 +15,14 @@ export function CompactRecruitingChart({ className = "" }: CompactRecruitingChar
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isAnimating, setIsAnimating] = useState(false)
   const [animationProgress, setAnimationProgress] = useState(0)
-  const [salaryBase, setSalaryBase] = useState(60000)
-  const [commissionRate, setCommissionRate] = useState(25)
+
+  // Fixe Werte basierend auf Erfahrungswerten
+  const salaryBase = 60000 // Fest: 60k brutto
+  const commissionRate = 20 // Fest: 20% Vermittlungshonorar
+
+  // Variable Werte - nur Vermittlungen können beeinflusst werden
+  const [projectsPerYear, setProjectsPerYear] = useState(6)
+
   const animationRef = useRef<number>()
   const startTimeRef = useRef<number>(0)
   const [hasAutoPlayed, setHasAutoPlayed] = useState(false)
@@ -31,15 +37,28 @@ export function CompactRecruitingChart({ className = "" }: CompactRecruitingChar
     const data = []
     let cumulativeRevenue = 0
 
-    // Realistic placement timeline: Start slow, then accelerate
-    // Monat 3: 1. Vermittlung (3 Monate Aufbau)
-    // Monat 6: 2. Vermittlung (3 Monate später)
-    // Monat 8: 3. Vermittlung (2 Monate später)
-    // Monat 10: 4. Vermittlung (2 Monate später)
-    // Monat 11: 5. Vermittlung (1 Monat später)
-    // Monat 12: 6. Vermittlung (1 Monat später)
-    const placementMonths = [3, 6, 8, 10, 11, 12]
+    // Realistische Vermittlungs-Timeline basierend auf der gewählten Anzahl
     const placementRevenue = salaryBase * (commissionRate / 100)
+
+    // Verteilung der Vermittlungen über das Jahr
+    const placementMonths = []
+    if (projectsPerYear >= 1) placementMonths.push(3) // Erste nach 3 Monaten
+    if (projectsPerYear >= 2) placementMonths.push(6) // Zweite nach 6 Monaten
+    if (projectsPerYear >= 3) placementMonths.push(8) // Dritte nach 8 Monaten
+    if (projectsPerYear >= 4) placementMonths.push(10) // Vierte nach 10 Monaten
+    if (projectsPerYear >= 5) placementMonths.push(11) // Fünfte nach 11 Monaten
+    if (projectsPerYear >= 6) placementMonths.push(12) // Sechste nach 12 Monaten
+
+    // Weitere Vermittlungen gleichmäßig verteilen
+    if (projectsPerYear > 6) {
+      const additionalPlacements = projectsPerYear - 6
+      const availableMonths = [4, 5, 7, 9] // Verfügbare Monate
+      for (let i = 0; i < additionalPlacements && i < availableMonths.length; i++) {
+        placementMonths.push(availableMonths[i])
+      }
+    }
+
+    placementMonths.sort((a, b) => a - b)
 
     for (let month = 1; month <= 12; month++) {
       let monthlyRevenue = 0
@@ -301,7 +320,7 @@ export function CompactRecruitingChart({ className = "" }: CompactRecruitingChar
   // Draw chart when progress changes
   useEffect(() => {
     drawChart(animationProgress)
-  }, [animationProgress, salaryBase, commissionRate])
+  }, [animationProgress, projectsPerYear])
 
   const startAnimation = () => {
     setAnimationProgress(0)
@@ -325,7 +344,7 @@ export function CompactRecruitingChart({ className = "" }: CompactRecruitingChar
 
   const totalRevenue = monthlyData[11]?.cumulativeRevenue || 0
   const avgMonthlyRevenue = totalRevenue / 12
-  const totalPlacements = monthlyData.filter((d) => d.isPlacement).length
+  const totalPlacements = Math.min(projectsPerYear, monthlyData.filter((d) => d.isPlacement).length)
 
   return (
     <Card
@@ -344,7 +363,9 @@ export function CompactRecruitingChart({ className = "" }: CompactRecruitingChar
               </div>
               <div>
                 <CardTitle className="text-xl font-bold">Recruiting Business Potenzial</CardTitle>
-                <p className="text-white/90 text-sm">Beschleunigendes Wachstum - 6 Vermittlungen im ersten Jahr</p>
+                <p className="text-white/90 text-sm">
+                  Basierend auf Erfahrungswerten - {projectsPerYear} Vermittlungen im ersten Jahr
+                </p>
               </div>
             </div>
             <Badge className="bg-white/20 text-white border-white/30 text-xs backdrop-blur-sm">
@@ -381,7 +402,7 @@ export function CompactRecruitingChart({ className = "" }: CompactRecruitingChar
                 <span className="text-sm font-medium">Vermittlungen</span>
               </div>
               <div className="text-xl font-bold">
-                {Math.floor(totalPlacements * animationProgress)} / {totalPlacements}
+                {Math.floor(totalPlacements * animationProgress)} / {projectsPerYear}
               </div>
             </div>
           </div>
@@ -426,44 +447,56 @@ export function CompactRecruitingChart({ className = "" }: CompactRecruitingChar
             </div>
           </div>
 
-          {/* Enhanced Parameter Controls */}
-          <div className="grid grid-cols-2 gap-6">
+          {/* Parameter Controls - Nur Vermittlungen variabel */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Fixe Werte - nur zur Anzeige */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-700">Durchschnittsgehalt</label>
-                <span className="text-lg font-bold text-custom-orange">{salaryBase.toLocaleString("de-DE")} €</span>
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  Durchschnittsgehalt
+                  <Lock className="h-3 w-3 text-slate-400" />
+                </label>
+                <span className="text-lg font-bold text-slate-600">{salaryBase.toLocaleString("de-DE")} €</span>
               </div>
-              <Slider
-                value={[salaryBase]}
-                onValueChange={(value) => setSalaryBase(value[0])}
-                min={40000}
-                max={120000}
-                step={5000}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-slate-500">
-                <span>40.000 €</span>
-                <span>120.000 €</span>
+              <div className="bg-slate-100 rounded-lg p-3 text-center">
+                <p className="text-xs text-slate-500">Basierend auf Erfahrungswerten</p>
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-700">Provision</label>
-                <span className="text-lg font-bold text-custom-orange">{commissionRate}%</span>
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  Provision
+                  <Lock className="h-3 w-3 text-slate-400" />
+                </label>
+                <span className="text-lg font-bold text-slate-600">{commissionRate}%</span>
+              </div>
+              <div className="bg-slate-100 rounded-lg p-3 text-center">
+                <p className="text-xs text-slate-500">Realistischer Branchendurchschnitt</p>
+              </div>
+            </div>
+
+            {/* Variable Vermittlungen */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-slate-700">Vermittlungen pro Jahr</label>
+                <span className="text-lg font-bold text-custom-orange">{projectsPerYear}</span>
               </div>
               <Slider
-                value={[commissionRate]}
-                onValueChange={(value) => setCommissionRate(value[0])}
-                min={15}
-                max={35}
+                value={[projectsPerYear]}
+                onValueChange={(value) => setProjectsPerYear(value[0])}
+                min={1}
+                max={10}
                 step={1}
                 className="w-full"
               />
               <div className="flex justify-between text-xs text-slate-500">
-                <span>15%</span>
-                <span>35%</span>
+                <span>1</span>
+                <span>10</span>
               </div>
+              <p className="text-xs text-slate-500 text-center">
+                ≈ {(projectsPerYear / 12).toFixed(1)} Vermittlungen pro Monat
+              </p>
             </div>
           </div>
         </div>
@@ -486,28 +519,28 @@ export function CompactRecruitingChart({ className = "" }: CompactRecruitingChar
         </div>
 
         {/* Updated Insights */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 transition-all duration-300 hover:shadow-md">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center">
                 <TrendingUp className="h-3 w-3 text-green-600" />
               </div>
-              <h4 className="font-semibold text-green-900 text-sm">Realistischer Start</h4>
+              <h4 className="font-semibold text-green-900 text-sm">Realistische Basis</h4>
             </div>
             <p className="text-green-800 text-xs leading-relaxed">
-              Erste Vermittlung nach 3 Monaten Aufbauzeit - dann beschleunigt sich der Erfolg!
+              60k€ Durchschnittsgehalt und 20% Provision basieren auf unseren Erfahrungswerten aus der Praxis.
             </p>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 transition-all duration-300 hover:shadow-md">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Euro className="h-3 w-3 text-blue-600" />
+                <Users className="h-3 w-3 text-blue-600" />
               </div>
-              <h4 className="font-semibold text-blue-900 text-sm">Exponentielles Wachstum</h4>
+              <h4 className="font-semibold text-blue-900 text-sm">Deine Variable</h4>
             </div>
             <p className="text-blue-800 text-xs leading-relaxed">
-              In den letzten 3 Monaten bereits 3 Vermittlungen - das Momentum baut sich auf!
+              Nur die Anzahl der Vermittlungen kannst du beeinflussen - sei realistisch bei deiner Einschätzung!
             </p>
           </div>
         </div>

@@ -5,23 +5,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp, Users, Euro, Calendar, Sparkles, Play, Pause, RotateCcw } from "lucide-react"
+import { TrendingUp, Users, Euro, Calendar, Sparkles, Play, Pause, RotateCcw, Lock } from "lucide-react"
 
 interface RecruitingGrowthChartProps {
-  salaryBase?: number
-  commissionRate?: number
   className?: string
 }
 
-export function RecruitingGrowthChart({
-  salaryBase = 60000,
-  commissionRate = 25,
-  className = "",
-}: RecruitingGrowthChartProps) {
+export function RecruitingGrowthChart({ className = "" }: RecruitingGrowthChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isAnimating, setIsAnimating] = useState(false)
   const [currentMonth, setCurrentMonth] = useState(0)
   const [animationSpeed, setAnimationSpeed] = useState(100)
+
+  // Fixe Werte basierend auf Erfahrung
+  const salaryBase = 60000 // 60k€ brutto
+  const commissionRate = 20 // 20% Provision
+
+  // Variable Werte - nur Vermittlungen können beeinflusst werden
+  const [projectsPerYear, setProjectsPerYear] = useState(6)
+
   const animationRef = useRef<number>()
   const lastTimeRef = useRef<number>(0)
 
@@ -30,24 +32,35 @@ export function RecruitingGrowthChart({
     const data = []
     let cumulativeRevenue = 0
 
+    // Realistische Vermittlungs-Timeline basierend auf der gewählten Anzahl
+    const placementRevenue = salaryBase * (commissionRate / 100)
+
+    // Verteilung der Vermittlungen über das Jahr
+    const placementMonths = []
+    if (projectsPerYear >= 1) placementMonths.push(3) // Erste nach 3 Monaten
+    if (projectsPerYear >= 2) placementMonths.push(6) // Zweite nach 6 Monaten
+    if (projectsPerYear >= 3) placementMonths.push(8) // Dritte nach 8 Monaten
+    if (projectsPerYear >= 4) placementMonths.push(10) // Vierte nach 10 Monaten
+    if (projectsPerYear >= 5) placementMonths.push(11) // Fünfte nach 11 Monaten
+    if (projectsPerYear >= 6) placementMonths.push(12) // Sechste nach 12 Monaten
+
+    // Weitere Vermittlungen gleichmäßig verteilen
+    if (projectsPerYear > 6) {
+      const additionalPlacements = projectsPerYear - 6
+      const availableMonths = [4, 5, 7, 9] // Verfügbare Monate
+      for (let i = 0; i < additionalPlacements && i < availableMonths.length; i++) {
+        placementMonths.push(availableMonths[i])
+      }
+    }
+
+    placementMonths.sort((a, b) => a - b)
+
     for (let month = 1; month <= 12; month++) {
       let monthlyRevenue = 0
+      const placements = placementMonths.includes(month) ? 1 : 0
 
-      // First placement after 3 months
-      if (month === 3) {
-        monthlyRevenue = salaryBase * (commissionRate / 100)
-        cumulativeRevenue += monthlyRevenue
-      }
-      // Second placement after 5 months
-      else if (month === 5) {
-        monthlyRevenue = salaryBase * (commissionRate / 100)
-        cumulativeRevenue += monthlyRevenue
-      }
-      // Gradual growth after initial placements
-      else if (month > 5) {
-        // Exponential growth simulation
-        const growthFactor = Math.pow(1.15, month - 5)
-        monthlyRevenue = salaryBase * (commissionRate / 100) * Math.min(growthFactor * 0.3, 2)
+      if (placements > 0) {
+        monthlyRevenue = placementRevenue * placements
         cumulativeRevenue += monthlyRevenue
       }
 
@@ -55,7 +68,7 @@ export function RecruitingGrowthChart({
         month,
         monthlyRevenue,
         cumulativeRevenue,
-        placements: month === 3 ? 1 : month === 5 ? 1 : month > 5 ? Math.floor(Math.random() * 2) + 1 : 0,
+        placements,
       })
     }
 
@@ -194,11 +207,13 @@ export function RecruitingGrowthChart({
           ctx.font = "bold 12px Inter, sans-serif"
           ctx.textAlign = "center"
           ctx.fillText("1. Vermittlung", x, y - 25)
-        } else if (data.month === 5) {
+        } else if (data.placements > 0 && data.month > 3) {
+          const placementMonths = [3, 6, 8, 10, 11, 12] // Declare placementMonths here
+          const placementNumber = placementMonths.indexOf(data.month) + 1
           ctx.fillStyle = "#10b981"
           ctx.font = "bold 12px Inter, sans-serif"
           ctx.textAlign = "center"
-          ctx.fillText("2. Vermittlung", x, y - 25)
+          ctx.fillText(`${placementNumber}. Vermittlung`, x, y - 25)
         }
       })
     }
@@ -269,7 +284,7 @@ export function RecruitingGrowthChart({
   // Draw chart when data changes
   useEffect(() => {
     drawChart(isAnimating ? currentMonth : 12)
-  }, [currentMonth, salaryBase, commissionRate, isAnimating])
+  }, [currentMonth, projectsPerYear, isAnimating])
 
   const startAnimation = () => {
     setCurrentMonth(0)
@@ -307,7 +322,9 @@ export function RecruitingGrowthChart({
               </div>
               <div>
                 <h3 className="text-2xl font-bold">Recruiting Business Potenzial</h3>
-                <p className="text-white/90 font-normal text-base">Umsatzentwicklung in den ersten 12 Monaten</p>
+                <p className="text-white/90 font-normal text-base">
+                  Basierend auf Erfahrungswerten - {projectsPerYear} Vermittlungen im ersten Jahr
+                </p>
               </div>
             </CardTitle>
 
@@ -340,9 +357,9 @@ export function RecruitingGrowthChart({
             <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="h-4 w-4" />
-                <span className="text-sm font-medium">Provision</span>
+                <span className="text-sm font-medium">Vermittlungen</span>
               </div>
-              <div className="text-2xl font-bold">{commissionRate}%</div>
+              <div className="text-2xl font-bold">{projectsPerYear}</div>
             </div>
           </div>
         </div>
@@ -390,48 +407,57 @@ export function RecruitingGrowthChart({
             )}
           </div>
 
-          {/* Parameter Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Parameter Controls - Nur Vermittlungen variabel */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Fixe Werte - nur zur Anzeige */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-700">Durchschnittsgehalt der Kandidaten</label>
-                <span className="text-lg font-bold text-custom-orange">{salaryBase.toLocaleString("de-DE")} €</span>
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  Durchschnittsgehalt
+                  <Lock className="h-3 w-3 text-slate-400" />
+                </label>
+                <span className="text-lg font-bold text-slate-600">{salaryBase.toLocaleString("de-DE")} €</span>
               </div>
-              <Slider
-                value={[salaryBase]}
-                onValueChange={(value) => {
-                  // This would need to be passed up to parent component
-                  // For now, we'll just update locally
-                }}
-                min={40000}
-                max={120000}
-                step={5000}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-slate-500">
-                <span>40.000 €</span>
-                <span>120.000 €</span>
+              <div className="bg-slate-100 rounded-lg p-3 text-center">
+                <p className="text-xs text-slate-500">Basierend auf Erfahrungswerten</p>
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-700">Vermittlungsprovision</label>
-                <span className="text-lg font-bold text-custom-orange">{commissionRate}%</span>
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  Provision
+                  <Lock className="h-3 w-3 text-slate-400" />
+                </label>
+                <span className="text-lg font-bold text-slate-600">{commissionRate}%</span>
               </div>
-              <Slider
-                value={[commissionRate]}
-                onValueChange={(value) => {
-                  // This would need to be passed up to parent component
-                }}
-                min={15}
-                max={35}
-                step={1}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-slate-500">
-                <span>15%</span>
-                <span>35%</span>
+              <div className="bg-slate-100 rounded-lg p-3 text-center">
+                <p className="text-xs text-slate-500">Realistischer Branchendurchschnitt</p>
+              </div>
+            </div>
+
+            {/* Variable Vermittlungen */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-slate-700">Vermittlungen pro Jahr</label>
+                <span className="text-lg font-bold text-custom-orange">{projectsPerYear}</span>
+              </div>
+              <div className="space-y-4">
+                <Slider
+                  value={[projectsPerYear]}
+                  onValueChange={(value) => setProjectsPerYear(value[0])}
+                  min={1}
+                  max={12}
+                  step={1}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>1</span>
+                  <span>12</span>
+                </div>
+                <p className="text-sm text-slate-500 text-center">
+                  ≈ {(projectsPerYear / 12).toFixed(1)} Vermittlungen pro Monat
+                </p>
               </div>
             </div>
           </div>
@@ -451,10 +477,33 @@ export function RecruitingGrowthChart({
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <span className="text-slate-700">Vermittlung erfolgreich</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-custom-orange rounded-full"></div>
-              <span className="text-slate-700">Aufbauphase</span>
+          </div>
+        </div>
+
+        {/* Updated Insights */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 transition-all duration-300 hover:shadow-md">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-3 w-3 text-green-600" />
+              </div>
+              <h4 className="font-semibold text-green-900 text-sm">Realistische Basis</h4>
             </div>
+            <p className="text-green-800 text-xs leading-relaxed">
+              60k€ Durchschnittsgehalt und 20% Provision basieren auf unseren Erfahrungswerten aus der Praxis.
+            </p>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 transition-all duration-300 hover:shadow-md">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Users className="h-3 w-3 text-blue-600" />
+              </div>
+              <h4 className="font-semibold text-blue-900 text-sm">Deine Variable</h4>
+            </div>
+            <p className="text-blue-800 text-xs leading-relaxed">
+              Nur die Anzahl der Vermittlungen kannst du beeinflussen - sei realistisch bei deiner Einschätzung!
+            </p>
           </div>
         </div>
       </CardContent>
